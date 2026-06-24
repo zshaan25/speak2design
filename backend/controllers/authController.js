@@ -1,6 +1,10 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { sendPasswordResetEmail, isMailConfigured } from '../utils/mailer.js';
+
+const hashToken = (raw) => crypto.createHash('sha256').update(raw).digest('hex');
 
 const buildTokenSignature = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -153,6 +157,91 @@ export const updateUserProfile = async (req, res) => {
   } catch (err) {
     console.error('>>> Profile update error:', err);
     return res.status(500).json({ success: false, message: 'Failed to update profile.' });
+  }
+};
+
+// ─── Forgot Password — issue a reset token + email link ───────────────────────
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+    // Always respond the same way to avoid leaking which emails are registered.
+    const genericMsg = 'If an account exists for that email, a password reset link has been sent.';
+
+    if (!user) return res.status(200).json({ success: true, message: genericMsg });
+
+    // OAuth-only accounts have no password to reset.
+    if (user.authProvider !== 'local') {
+      return res.status(200).json({
+        success: true,
+        message: `This account uses ${user.authProvider} sign-in. Please log in with ${user.authProvider}.`
+      });
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = hashToken(rawToken);
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save();
+
+    const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${base}/?reset=${rawToken}`;
+
+    let emailed = false;
+    try {
+      emailed = await sendPasswordResetEmail(user.email, resetLink);
+    } catch (mailErr) {
+      console.error('>>> Reset email send failed:', mailErr.message);
+    }
+
+    // If SMTP isn't configured (or send failed), return the link so the flow is
+    // still usable in development / demo. With SMTP configured, never leak the link.
+    const payload = { success: true, message: genericMsg };
+    if (!emailed) {
+      console.log(`>>> [DEV] Password reset link for ${user.email}: ${resetLink}`);
+      payload.devLink = resetLink;
+      payload.message = isMailConfigured()
+        ? 'Email service error — use the reset link shown below.'
+        : 'Email service not configured — use the reset link below to continue.';
+    }
+    return res.status(200).json(payload);
+  } catch (err) {
+    console.error('>>> Forgot password error:', err);
+    return res.status(500).json({ success: false, message: 'Could not start password reset.' });
+  }
+};
+
+// ─── Reset Password — consume token, set new password ─────────────────────────
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Token and new password are required.' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters.' });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: hashToken(token),
+      resetPasswordExpires: { $gt: new Date() }
+    });
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Reset link is invalid or has expired. Request a new one.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    return res.status(200).json({ success: true, message: 'Password reset successfully. You can now log in.' });
+  } catch (err) {
+    console.error('>>> Reset password error:', err);
+    return res.status(500).json({ success: false, message: 'Could not reset password.' });
   }
 };
 

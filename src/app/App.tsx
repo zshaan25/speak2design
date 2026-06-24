@@ -23,8 +23,43 @@ export default function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
 
+  // Handle OAuth (Google/GitHub) return: ?token=... on success, ?oauth_error=... on failure.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthToken = params.get('token');
+    const oauthError = params.get('oauth_error');
+    if (oauthToken || oauthError) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('token');
+      url.searchParams.delete('oauth');
+      url.searchParams.delete('oauth_error');
+      url.searchParams.delete('provider');
+      window.history.replaceState({}, '', url.toString());
+    }
+    if (oauthError) {
+      const provider = params.get('provider') || 'provider';
+      const msg = oauthError === 'not_configured'
+        ? `${provider[0].toUpperCase() + provider.slice(1)} login isn't configured yet.`
+        : oauthError === 'no_email'
+        ? 'Your account has no accessible email. Use email/password instead.'
+        : 'Social login failed. Please try again.';
+      toast.error(msg);
+    }
+    if (oauthToken) {
+      localStorage.setItem('speak2design_token', oauthToken);
+      setAuthToken(oauthToken);
+      toast.success('Signed in successfully.');
+    }
+  }, []);
+
   useEffect(() => {
     const bootstrapSession = async () => {
+      // A password-reset link (?reset=token) must always land on the auth screen
+      // so the reset modal can handle it — even if a stale session token exists.
+      if (new URLSearchParams(window.location.search).get('reset')) {
+        setCurrentPage('signup');
+        return;
+      }
       if (!authToken) { setCurrentPage('signup'); return; }
       try {
         const res = await fetch(`${API_BASE}/api/auth/profile`, {

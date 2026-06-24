@@ -16,9 +16,19 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Security storage password hash parameter required.'],
+    // Password is only required for local accounts. OAuth accounts (Google/GitHub)
+    // authenticate via the provider and have no local password.
+    required: [function () { return !this.googleId && !this.githubId; }, 'Security storage password hash parameter required.'],
     minlength: [6, 'Password must consist of a minimum of 6 characters.']
   },
+  // ─── OAuth (Google / GitHub) ────────────────────────────────────────────────
+  googleId: { type: String, default: undefined },
+  githubId: { type: String, default: undefined },
+  authProvider: { type: String, enum: ['local', 'google', 'github'], default: 'local' },
+  avatarUrl: { type: String, default: '' },
+  // ─── Password reset ─────────────────────────────────────────────────────────
+  resetPasswordToken: { type: String, default: undefined },
+  resetPasswordExpires: { type: Date, default: undefined },
   tier: {
     type: String,
     enum: ['free', 'premium'],

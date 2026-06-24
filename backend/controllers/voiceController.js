@@ -28,16 +28,18 @@ const getGeminiModel = () => {
 };
 
 // ─── Audio transcription via Gemini ──────────────────────────────────────────
-const transcribeAudioWithGemini = async (audioBuffer, targetLanguage) => {
+const transcribeAudioWithGemini = async (audioBuffer, targetLanguage, mimeType = 'audio/webm') => {
   try {
     const model = getGeminiModel();
     const base64Audio = audioBuffer.toString('base64');
+    // Gemini accepts the base container type; strip any codec suffix (e.g. "audio/webm;codecs=opus").
+    const safeMime = (mimeType || 'audio/webm').split(';')[0];
     const langHint = targetLanguage === 'Urdu'
       ? 'The speaker is speaking in Urdu. Transcribe in Urdu script.'
       : 'The speaker is speaking in English. Transcribe exactly as spoken.';
 
     const result = await model.generateContent([
-      { inlineData: { mimeType: 'audio/webm', data: base64Audio } },
+      { inlineData: { mimeType: safeMime, data: base64Audio } },
       `${langHint} Return ONLY the transcription text, no labels, no explanations.`
     ]);
 
@@ -228,7 +230,7 @@ export const transcribeAudioAndGenerateUI = async (req, res) => {
     const baseCanvasState = JSON.parse(req.body.currentCanvas || '[]');
 
     // Step 1: Transcribe audio
-    const transcription = await transcribeAudioWithGemini(req.file.buffer, requestedLanguage);
+    const transcription = await transcribeAudioWithGemini(req.file.buffer, requestedLanguage, req.file.mimetype);
     if (!transcription?.trim()) {
       return res.status(422).json({ success: false, message: 'No speech detected. Please speak clearly and try again.' });
     }

@@ -50,6 +50,22 @@ const ExportModal: React.FC<{
   const [copied, setCopied] = useState(false);
   const isPremium = userTier === 'premium';
 
+  // Mirror the canvas FR_05 layout (width / align / spacing) into the exported HTML
+  // so the downloaded file matches what the user sees on the canvas.
+  const exportWrapperStyle = (styles: Record<string, string> = {}): string => {
+    const widthPct: Record<string, string> = { sm: '40%', md: '60%', lg: '80%', full: '100%' };
+    const spacingPad: Record<string, string> = { compact: '0.25rem 0', normal: '0.75rem 0', spacious: '2.5rem 0' };
+    const width = widthPct[styles.width] || '100%';
+    const align = styles.align || 'center';
+    const parts = [`width:${width}`, `padding:${spacingPad[styles.spacing] || '0.75rem 0'}`];
+    if (width !== '100%') {
+      if (align === 'center') parts.push('margin-left:auto', 'margin-right:auto');
+      else if (align === 'right') parts.push('margin-left:auto');
+      else parts.push('margin-right:auto');
+    }
+    return parts.join(';');
+  };
+
   const fullHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -59,7 +75,7 @@ const ExportModal: React.FC<{
   <script src="https://cdn.tailwindcss.com"><\/script>
 </head>
 <body>
-${canvas.map(c => `  <!-- ${c.name} -->\n  ${c.htmlContent.trim()}`).join('\n\n')}
+${canvas.map(c => `  <!-- ${c.name} -->\n  <div style="${exportWrapperStyle(c.styles)}">\n    ${c.htmlContent.trim()}\n  </div>`).join('\n\n')}
 </body>
 </html>`;
 

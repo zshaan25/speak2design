@@ -5,6 +5,7 @@ const templateSchema = new mongoose.Schema({
   description: { type: String, required: true },
   price: { type: Number, required: true, min: 0 },
   color: { type: String, default: 'from-blue-500 to-indigo-600' },
+  imageUrl: { type: String, default: '' },
   canvasSnapshot: { type: Array, default: [] },
   author: { type: String, default: 'Speak2Design Team' },
   rating: { type: Number, default: 0, min: 0, max: 5 },

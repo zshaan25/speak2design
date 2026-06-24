@@ -38,12 +38,12 @@ const seedDefaultTemplates = async () => {
   const count = await Template.countDocuments();
   if (count === 0) {
     await Template.insertMany([
-      { title: 'Modern Dashboard UI', description: 'A clean dashboard with charts and stats panels.', price: 2500, color: 'from-indigo-500 to-blue-600', author: 'Ahmad Khan', rating: 4.8, sales: 124, lang: 'English', category: 'Dashboards', canvasSnapshot: [] },
-      { title: 'E-commerce Portfolio', description: 'Beautiful product listing page with cart.', price: 3500, color: 'from-rose-400 to-pink-600', author: 'Sarah Ahmed', rating: 4.9, sales: 98, lang: 'English', category: 'Landing Pages', canvasSnapshot: [] },
-      { title: 'اردو بلاگ ٹیمپلیٹ', description: 'Urdu RTL blog layout with clean typography.', price: 2000, color: 'from-cyan-500 to-teal-600', author: 'Ali Raza', rating: 4.7, sales: 67, lang: 'Urdu', category: 'Blogs', canvasSnapshot: [] },
-      { title: 'SaaS Landing Page', description: 'Premium SaaS product page with hero and pricing.', price: 4500, color: 'from-emerald-500 to-green-600', author: 'Zainab Bibi', rating: 5.0, sales: 215, lang: 'English', category: 'Landing Pages', canvasSnapshot: [] },
-      { title: 'Mobile App Kit', description: 'Complete mobile app UI kit with all screens.', price: 3000, color: 'from-amber-500 to-orange-600', author: 'Bilal Malik', rating: 4.6, sales: 89, lang: 'English', category: 'UI Kits', canvasSnapshot: [] },
-      { title: 'اردو پورٹ فولیو', description: 'Urdu portfolio site for freelancers.', price: 1500, color: 'from-blue-600 to-indigo-800', author: 'Hassan Ali', rating: 4.8, sales: 45, lang: 'Urdu', category: 'Portfolio', canvasSnapshot: [] },
+      { title: 'Modern Dashboard UI', description: 'A clean dashboard with charts and stats panels.', price: 2500, color: 'from-indigo-500 to-blue-600', imageUrl: '/previews/dashboard.svg', author: 'Ahmad Khan', rating: 4.8, sales: 124, lang: 'English', category: 'Dashboards', canvasSnapshot: [] },
+      { title: 'E-commerce Portfolio', description: 'Beautiful product listing page with cart.', price: 3500, color: 'from-rose-400 to-pink-600', imageUrl: '/previews/ecommerce.svg', author: 'Sarah Ahmed', rating: 4.9, sales: 98, lang: 'English', category: 'Landing Pages', canvasSnapshot: [] },
+      { title: 'اردو بلاگ ٹیمپلیٹ', description: 'Urdu RTL blog layout with clean typography.', price: 2000, color: 'from-cyan-500 to-teal-600', imageUrl: '/previews/blog.svg', author: 'Ali Raza', rating: 4.7, sales: 67, lang: 'Urdu', category: 'Blogs', canvasSnapshot: [] },
+      { title: 'SaaS Landing Page', description: 'Premium SaaS product page with hero and pricing.', price: 4500, color: 'from-emerald-500 to-green-600', imageUrl: '/previews/saas.svg', author: 'Zainab Bibi', rating: 5.0, sales: 215, lang: 'English', category: 'Landing Pages', canvasSnapshot: [] },
+      { title: 'Mobile App Kit', description: 'Complete mobile app UI kit with all screens.', price: 3000, color: 'from-amber-500 to-orange-600', imageUrl: '/previews/mobile.svg', author: 'Bilal Malik', rating: 4.6, sales: 89, lang: 'English', category: 'UI Kits', canvasSnapshot: [] },
+      { title: 'اردو پورٹ فولیو', description: 'Urdu portfolio site for freelancers.', price: 1500, color: 'from-blue-600 to-indigo-800', imageUrl: '/previews/portfolio.svg', author: 'Hassan Ali', rating: 4.8, sales: 45, lang: 'Urdu', category: 'Portfolio', canvasSnapshot: [] },
     ]);
     console.log('>>> Default marketplace templates seeded.');
   }
@@ -72,7 +72,7 @@ export const publishTemplate = async (req, res) => {
       });
     }
 
-    const { title, description, price, language, tags, color } = req.body;
+    const { title, description, price, language, tags, color, imageUrl } = req.body;
     if (!title || !description || !price) {
       return res.status(400).json({ success: false, message: 'Title, description, and price are required.' });
     }
@@ -85,6 +85,7 @@ export const publishTemplate = async (req, res) => {
       price: Number(price),
       lang: language || 'English',
       color: color || 'from-blue-500 to-indigo-600',
+      imageUrl: imageUrl || '',
       author: req.user.name,
       canvasSnapshot: [],
       sales: 0,

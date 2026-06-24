@@ -5,6 +5,17 @@ import { toast } from 'sonner';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:5000';
 
+// Category → curated UI preview image (served from /public/previews).
+const CATEGORY_PREVIEW: Record<string, string> = {
+  Dashboards: '/previews/dashboard.svg',
+  'Landing Pages': '/previews/saas.svg',
+  Blogs: '/previews/blog.svg',
+  'UI Kits': '/previews/mobile.svg',
+  Portfolio: '/previews/portfolio.svg',
+};
+const previewSrc = (t: any): string =>
+  t?.imageUrl || CATEGORY_PREVIEW[t?.category] || '/previews/generic.svg';
+
 interface MarketplaceProps {
   onCheckout: (template: any) => void;
   onBack: () => void;
@@ -17,7 +28,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack }) 
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
-  const [publishForm, setPublishForm] = useState({ title: '', description: '', price: '2500', language: 'English', tags: '' });
+  const [publishForm, setPublishForm] = useState({ title: '', description: '', price: '2500', language: 'English', tags: '', imageUrl: '' });
   const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
   const [isUpgrading, setIsUpgrading] = useState(false);
 
@@ -84,13 +95,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack }) 
           description: publishForm.description,
           price: Number(publishForm.price),
           language: publishForm.language,
+          imageUrl: publishForm.imageUrl.trim(),
           tags: publishForm.tags.split(',').map(t => t.trim()).filter(Boolean)
         })
       });
       const data = await res.json();
       if (data.success) {
         toast.success(data.message || 'Template published!');
-        setPublishForm({ title: '', description: '', price: '2500', language: 'English', tags: '' });
+        setPublishForm({ title: '', description: '', price: '2500', language: 'English', tags: '', imageUrl: '' });
         setView('buy');
         fetchTemplates();
       } else if (res.status === 403 && data.premiumRequired) {
@@ -192,12 +204,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack }) 
                   whileHover={{ y: -6 }}
                   className="group bg-white rounded-[32px] border border-gray-100 shadow-sm hover:shadow-2xl transition-all overflow-hidden"
                 >
-                  <div className={`h-56 ${tpl.color || 'bg-indigo-500'} relative overflow-hidden`}>
-                    <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-white/20 backdrop-blur-md rounded-full text-white text-[10px] font-bold uppercase tracking-wider border border-white/30">
+                  <div className="h-56 relative overflow-hidden bg-gray-100">
+                    <img
+                      src={previewSrc(tpl)}
+                      alt={`${tpl.title} preview`}
+                      loading="lazy"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/previews/generic.svg'; }}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-full text-gray-800 text-[10px] font-bold uppercase tracking-wider border border-white/60 shadow-sm">
                       <Globe className="w-3 h-3" />
                       {tpl.language || tpl.lang || 'English'}
                     </div>
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_70%)] from-white" />
                   </div>
                   <div className="p-8">
                     <div className="flex justify-between items-start mb-1">
@@ -305,14 +323,26 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack }) 
 
               <div className="space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Thumbnail Image</label>
-                  <div className="w-full h-48 border-2 border-dashed border-gray-200 rounded-[32px] flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100/50 hover:border-[#0052CC] transition-all cursor-pointer group">
-                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Upload className="w-8 h-8 text-[#0052CC]" />
-                    </div>
-                    <p className="font-bold text-gray-900 mb-1 text-sm">Click to upload thumbnail</p>
-                    <p className="text-xs text-gray-400">PNG, JPG up to 5MB</p>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Preview Image</label>
+                  <div className="w-full h-48 rounded-[32px] overflow-hidden bg-gray-50 border border-gray-100 mb-3">
+                    <img
+                      src={publishForm.imageUrl.trim() || '/previews/generic.svg'}
+                      alt="Template preview"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/previews/generic.svg'; }}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
+                  <div className="relative">
+                    <Upload className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="url"
+                      value={publishForm.imageUrl}
+                      onChange={e => setPublishForm(f => ({ ...f, imageUrl: e.target.value }))}
+                      placeholder="Paste preview image URL (optional)"
+                      className="w-full pl-10 pr-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC] text-sm"
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1.5 ml-1">Leave blank to use a default preview based on category.</p>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Tags (comma-separated)</label>

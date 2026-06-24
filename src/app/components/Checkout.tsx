@@ -245,7 +245,14 @@ const CheckoutInner: React.FC<CheckoutProps> = ({ template, onConfirm, onBack })
 
             <div className="flex flex-col gap-6 mb-8 pb-8 border-b border-gray-100">
               <div className="flex gap-4">
-                <div className={`w-24 h-24 ${template?.color || 'bg-blue-500'} rounded-2xl shadow-inner`} />
+                <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-inner bg-gray-100 flex-shrink-0">
+                  <img
+                    src={template?.imageUrl || '/previews/generic.svg'}
+                    alt={`${template?.title || 'Template'} preview`}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/previews/generic.svg'; }}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div>
                   <h4 className="font-bold text-gray-900 leading-tight mb-1">{template?.title || 'Modern Dashboard Template'}</h4>
                   <p className="text-sm text-gray-500">by {template?.author || 'Ahmad Khan'}</p>

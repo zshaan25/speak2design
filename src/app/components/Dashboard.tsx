@@ -178,8 +178,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center opacity-10">
-                  <span className="text-8xl font-black text-white">{project.title?.charAt(0) || 'P'}</span>
+                {/* Mini UI-design preview (wireframe reflecting the project's components) */}
+                <div className="absolute inset-0 flex items-center justify-center p-6 pointer-events-none">
+                  <div className="w-full max-w-[190px] bg-white/95 rounded-lg shadow-xl overflow-hidden">
+                    <div className="h-4 bg-gray-100 flex items-center gap-1 px-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-300" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-300" />
+                    </div>
+                    <div className="p-2.5 space-y-1.5">
+                      <div className="h-5 rounded bg-gray-300" />
+                      {Array.from({ length: Math.max(2, Math.min(4, (project.canvasState || []).length)) }).map((_, i) => (
+                        <div key={i} className="h-3 rounded bg-gray-200" style={{ width: `${90 - i * 12}%` }} />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="p-6">

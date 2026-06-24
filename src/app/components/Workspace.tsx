@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Mic, ChevronLeft, Undo2, Redo2, Code2, Settings2, X, Save,
   Volume2, VolumeX, GripVertical, Loader2, Crown, Zap, Download,
-  Copy, Check, AlertCircle, RefreshCw
+  Copy, Check, AlertCircle, RefreshCw, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DOMPurify from 'dompurify';
@@ -525,6 +525,18 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
     speakTTS('Component removed from canvas.');
   };
 
+  // ── FR_05: Move component up / down in the canvas stack ─────────────────────
+  const moveComponent = (id: string, direction: 'up' | 'down') => {
+    const updated = [...canvasState];
+    const idx = updated.findIndex(c => c.id === id);
+    if (direction === 'up' && idx > 0) {
+      [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
+    } else if (direction === 'down' && idx < updated.length - 1) {
+      [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];
+    } else return; // already at edge — do nothing
+    pushNewStateToHistory(updated);
+  };
+
   // ── Drag & drop reorder ──────────────────────────────────────────────────────
   const handleDragStart = (id: string) => { dragItemRef.current = id; };
   const handleDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); setDragOverId(id); };
@@ -810,15 +822,29 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                 {canvasState.map(comp => (
                   <div
                     key={comp.id}
+                    draggable
+                    onDragStart={() => handleDragStart(comp.id)}
+                    onDragOver={e => handleDragOver(e, comp.id)}
+                    onDrop={e => handleDrop(e, comp.id)}
+                    onDragEnd={handleDragEnd}
                     onClick={() => setSelectedComponentId(comp.id)}
-                    className={`relative group border-2 transition-colors ${
+                    className={`relative group border-2 transition-all cursor-default ${
                       SPACING_CLASS[comp.styles?.spacing] || ''
                     } ${
-                      selectedComponentId === comp.id
+                      dragOverId === comp.id
+                        ? 'border-blue-400 border-dashed bg-blue-500/5'
+                        : selectedComponentId === comp.id
                         ? 'border-blue-500'
                         : 'border-transparent hover:border-blue-200'
                     }`}
                   >
+                    {/* FR_05: Canvas drag handle — shown on hover so user knows they can drag */}
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none">
+                      <div className="bg-white/95 border border-gray-200 rounded-full px-3 py-1 flex items-center gap-1.5 shadow-md text-[11px] text-gray-600 font-semibold backdrop-blur-sm whitespace-nowrap">
+                        <GripVertical className="w-3 h-3 text-gray-400" />
+                        {comp.name} · drag to reorder
+                      </div>
+                    </div>
                     <div
                       style={layoutWrapperStyle(comp.styles)}
                       dangerouslySetInnerHTML={{ __html: sanitizeHTML(comp.htmlContent) }}
@@ -985,6 +1011,25 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Actions</label>
+                {/* FR_05: Move component up / down in the canvas stack */}
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <button
+                    onClick={() => moveComponent(activeComponent.id, 'up')}
+                    disabled={canvasState.findIndex(c => c.id === activeComponent.id) === 0}
+                    className="flex items-center justify-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Move component up"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" /> Move Up
+                  </button>
+                  <button
+                    onClick={() => moveComponent(activeComponent.id, 'down')}
+                    disabled={canvasState.findIndex(c => c.id === activeComponent.id) === canvasState.length - 1}
+                    className="flex items-center justify-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Move component down"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" /> Move Down
+                  </button>
+                </div>
                 <button
                   onClick={() => removeComponent(activeComponent.id)}
                   className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold py-2.5 rounded-xl text-xs transition-colors"

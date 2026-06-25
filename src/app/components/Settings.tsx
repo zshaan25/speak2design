@@ -57,40 +57,40 @@ const ProfileModal: React.FC<{ user: any; onClose: () => void; onSave: (u: any) 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        className="glass-strong gradient-border rounded-2xl shadow-2xl text-white w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b">
-          <h3 className="font-bold text-lg text-gray-900">Edit Profile</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5" /></button>
+          <h3 className="font-bold text-lg text-white">Edit Profile</h3>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Full Name</label>
+            <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1.5 block">Full Name</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-brand-violet/60 text-sm" />
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Email Address</label>
+            <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1.5 block">Email Address</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-brand-violet/60 text-sm" />
           </div>
           <div className="border-t pt-4">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Change Password (optional)</p>
+            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Change Password (optional)</p>
             <div className="space-y-3">
               <div className="relative">
                 <input type={showCurrent ? 'text' : 'password'} value={currentPassword}
                   onChange={e => setCurrentPassword(e.target.value)} placeholder="Current password"
-                  className="w-full px-4 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  className="w-full px-4 py-3 pr-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-brand-violet/60 text-sm" />
                 <button type="button" onClick={() => setShowCurrent(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
                   {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               <div className="relative">
                 <input type={showNew ? 'text' : 'password'} value={newPassword}
                   onChange={e => setNewPassword(e.target.value)} placeholder="New password (min. 6 chars)"
-                  className="w-full px-4 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  className="w-full px-4 py-3 pr-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-brand-violet/60 text-sm" />
                 <button type="button" onClick={() => setShowNew(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
                   {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -98,11 +98,11 @@ const ProfileModal: React.FC<{ user: any; onClose: () => void; onSave: (u: any) 
           </div>
         </div>
         <div className="px-6 py-4 border-t flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50">
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-white/10 text-white/70 font-bold text-sm hover:bg-white/5">
             Cancel
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="flex-1 py-3 rounded-xl bg-[#0052CC] text-white font-bold text-sm hover:bg-[#0047b3] disabled:opacity-50 flex items-center justify-center gap-2">
+            className="flex-1 py-3 rounded-xl bg-gradient-to-r from-brand-indigo to-brand-violet text-white font-bold text-sm hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Changes
           </button>
@@ -129,30 +129,30 @@ const LanguageModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        className="glass-strong gradient-border rounded-2xl shadow-2xl text-white w-full max-w-sm">
         <div className="flex items-center justify-between p-6 border-b">
-          <h3 className="font-bold text-lg text-gray-900">Voice Language</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5" /></button>
+          <h3 className="font-bold text-lg text-white">Voice Language</h3>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-3">
-          <p className="text-sm text-gray-500">Choose your default voice command language for the workspace.</p>
+          <p className="text-sm text-white/50">Choose your default voice command language for the workspace.</p>
           {languages.map(lang => (
             <button key={lang.code} onClick={() => setSelected(lang.code)}
               className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
-                selected === lang.code ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-gray-200'
+                selected === lang.code ? 'border-brand-violet/60 bg-brand-indigo/15' : 'border-white/10 hover:border-white/20'
               }`}>
               <span className="text-2xl">{lang.flag}</span>
               <div className="text-left flex-1">
-                <p className="font-bold text-gray-900 text-sm">{lang.label}</p>
-                <p className="text-xs text-gray-500">{lang.native}</p>
+                <p className="font-bold text-white text-sm">{lang.label}</p>
+                <p className="text-xs text-white/50">{lang.native}</p>
               </div>
-              {selected === lang.code && <Check className="w-5 h-5 text-blue-600" />}
+              {selected === lang.code && <Check className="w-5 h-5 text-brand-cyan" />}
             </button>
           ))}
         </div>
         <div className="px-6 py-4 border-t">
           <button onClick={handleSave}
-            className="w-full py-3 bg-[#0052CC] text-white font-bold rounded-xl hover:bg-[#0047b3] transition-all">
+            className="w-full py-3 bg-gradient-to-r from-brand-indigo to-brand-violet text-white font-bold rounded-xl hover:opacity-90 transition-all">
             Save Preference
           </button>
         </div>
@@ -198,7 +198,7 @@ const DeactivateModal: React.FC<{
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        className="glass-strong gradient-border rounded-2xl shadow-2xl text-white w-full max-w-md overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b bg-amber-50">
           <div className="flex items-center gap-3">
@@ -206,12 +206,12 @@ const DeactivateModal: React.FC<{
               <PauseCircle className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900">Deactivate Account</h3>
-              <p className="text-xs text-gray-500">Temporarily disable your account</p>
+              <h3 className="font-bold text-white">Deactivate Account</h3>
+              <p className="text-xs text-white/50">Temporarily disable your account</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-amber-100 rounded-xl transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-white/50" />
           </button>
         </div>
 
@@ -231,7 +231,7 @@ const DeactivateModal: React.FC<{
           {/* Password confirmation (only for local accounts) */}
           {!isOAuth && (
             <div>
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+              <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1.5 block">
                 Confirm your password
               </label>
               <div className="relative">
@@ -240,10 +240,10 @@ const DeactivateModal: React.FC<{
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Enter your current password"
-                  className="w-full px-4 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                  className="w-full px-4 py-3 pr-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-amber-400 text-sm"
                 />
                 <button type="button" onClick={() => setShowPassword(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -251,7 +251,7 @@ const DeactivateModal: React.FC<{
           )}
 
           {isOAuth && (
-            <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <p className="text-sm text-white/60 bg-white/5 border border-white/10 rounded-xl p-4">
               You signed in with <strong className="capitalize">{user.authProvider}</strong>. No password is required — just confirm below to deactivate.
             </p>
           )}
@@ -259,7 +259,7 @@ const DeactivateModal: React.FC<{
 
         <div className="px-6 pb-6 flex gap-3">
           <button onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors">
+            className="flex-1 py-3 rounded-xl border border-white/10 text-white/70 font-bold text-sm hover:bg-white/5 transition-colors">
             Cancel
           </button>
           <button
@@ -316,7 +316,7 @@ const DeleteModal: React.FC<{
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        className="glass-strong gradient-border rounded-2xl shadow-2xl text-white w-full max-w-md overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b bg-red-50">
           <div className="flex items-center gap-3">
@@ -324,12 +324,12 @@ const DeleteModal: React.FC<{
               <Trash2 className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900">Delete Account</h3>
-              <p className="text-xs text-gray-500">This action is permanent and cannot be undone</p>
+              <h3 className="font-bold text-white">Delete Account</h3>
+              <p className="text-xs text-white/50">This action is permanent and cannot be undone</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-red-100 rounded-xl transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-white/50" />
           </button>
         </div>
 
@@ -350,7 +350,7 @@ const DeleteModal: React.FC<{
           {/* Password (local accounts only) */}
           {!isOAuth && (
             <div>
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+              <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1.5 block">
                 Current Password
               </label>
               <div className="relative">
@@ -359,10 +359,10 @@ const DeleteModal: React.FC<{
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Enter your current password"
-                  className="w-full px-4 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-400 text-sm"
+                  className="w-full px-4 py-3 pr-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-red-400 text-sm"
                 />
                 <button type="button" onClick={() => setShowPassword(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -371,7 +371,7 @@ const DeleteModal: React.FC<{
 
           {/* Type DELETE confirmation */}
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+            <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1.5 block">
               Type <span className="text-red-600 font-black">DELETE</span> to confirm
             </label>
             <input
@@ -379,10 +379,10 @@ const DeleteModal: React.FC<{
               value={confirmation}
               onChange={e => setConfirmation(e.target.value)}
               placeholder="DELETE"
-              className={`w-full px-4 py-3 bg-gray-50 border rounded-xl outline-none text-sm font-mono tracking-wider transition-colors ${
+              className={`w-full px-4 py-3 bg-white/5 border rounded-xl outline-none text-sm font-mono tracking-wider transition-colors ${
                 confirmation === 'DELETE'
                   ? 'border-red-400 focus:ring-2 focus:ring-red-400'
-                  : 'border-gray-200 focus:ring-2 focus:ring-gray-300'
+                  : 'border-white/10 focus:ring-2 focus:ring-gray-300'
               }`}
             />
           </div>
@@ -390,7 +390,7 @@ const DeleteModal: React.FC<{
 
         <div className="px-6 pb-6 flex gap-3">
           <button onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors">
+            className="flex-1 py-3 rounded-xl border border-white/10 text-white/70 font-bold text-sm hover:bg-white/5 transition-colors">
             Cancel
           </button>
           <button
@@ -498,27 +498,27 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
       </AnimatePresence>
 
       <div className="flex items-center gap-4 mb-10">
-        <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
+        <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/50">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        <h1 className="text-3xl font-bold text-white">Settings</h1>
       </div>
 
-      <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+      <div className="glass-strong gradient-border rounded-[40px] overflow-hidden">
 
         {/* User Profile Summary */}
-        <div className="p-10 bg-gray-50 border-b border-gray-100 flex items-center gap-6">
-          <div className="w-20 h-20 bg-[#0052CC] text-white rounded-[32px] flex items-center justify-center font-bold text-3xl shadow-lg ring-4 ring-white">
+        <div className="p-10 bg-white/5 border-b border-white/10 flex items-center gap-6">
+          <div className="w-20 h-20 bg-gradient-to-r from-brand-indigo to-brand-violet text-white rounded-[32px] flex items-center justify-center font-bold text-3xl shadow-lg ring-4 ring-white">
             {currentUser.avatar || currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{currentUser.name}</h2>
-            <p className="text-gray-500 font-medium">{currentUser.email}</p>
+            <h2 className="text-2xl font-bold text-white">{currentUser.name}</h2>
+            <p className="text-white/50 font-medium">{currentUser.email}</p>
             <div className="mt-3 flex gap-2 flex-wrap">
               <span className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider border ${
                 currentUser.tier === 'premium'
                   ? 'bg-blue-100 text-blue-700 border-blue-200'
-                  : 'bg-gray-100 text-gray-600 border-gray-200'
+                  : 'bg-white/10 text-white/60 border-white/10'
               }`}>
                 {currentUser.tier === 'premium' ? '⭐ Premium' : 'Free Individual'}
               </span>
@@ -528,7 +528,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
             </div>
           </div>
           <button onClick={() => setActiveModal('profile')}
-            className="ml-auto px-6 py-2.5 bg-white border border-gray-200 rounded-xl font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all text-sm">
+            className="ml-auto px-6 py-2.5 glass rounded-xl font-bold text-white/80 hover:text-white hover:border-white/25 transition-all text-sm">
             Edit Profile
           </button>
         </div>
@@ -560,16 +560,16 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
               <button
                 key={section.id}
                 onClick={section.action}
-                className="flex items-center gap-5 p-5 rounded-2xl hover:bg-gray-50 transition-all text-left group border border-transparent hover:border-gray-100"
+                className="flex items-center gap-5 p-5 rounded-2xl hover:bg-white/5 transition-all text-left group border border-transparent hover:border-white/10"
               >
-                <div className="w-12 h-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-gray-400 group-hover:text-[#0052CC] group-hover:border-blue-100 group-hover:bg-blue-50 transition-all shadow-sm flex-shrink-0">
+                <div className="w-12 h-12 glass rounded-2xl flex items-center justify-center text-white/50 group-hover:text-brand-cyan group-hover:border-white/25 transition-all flex-shrink-0">
                   <section.icon className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 mb-0.5 text-sm">{section.label}</h3>
-                  <p className="text-xs text-gray-500 truncate">{section.desc}</p>
+                  <h3 className="font-bold text-white mb-0.5 text-sm">{section.label}</h3>
+                  <p className="text-xs text-white/50 truncate">{section.desc}</p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
               </button>
             ))}
           </div>
@@ -589,8 +589,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
                   <PauseCircle className="w-4 h-4 text-amber-600" />
                 </div>
                 <div>
-                  <p className="font-bold text-gray-900 text-sm">Deactivate Account</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="font-bold text-white text-sm">Deactivate Account</p>
+                  <p className="text-xs text-white/50 mt-0.5">
                     Temporarily disable your account. All your data is preserved and you can reactivate by logging back in.
                   </p>
                 </div>
@@ -610,8 +610,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
                   <Trash2 className="w-4 h-4 text-red-600" />
                 </div>
                 <div>
-                  <p className="font-bold text-gray-900 text-sm">Delete Account</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="font-bold text-white text-sm">Delete Account</p>
+                  <p className="text-xs text-white/50 mt-0.5">
                     Permanently delete your account and all data including projects and purchased templates. This cannot be undone.
                   </p>
                 </div>
@@ -627,8 +627,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
         </div>
 
         <div className="px-8 pb-8 flex items-center justify-between">
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Speak2Design v2.0.0</p>
-          <p className="text-xs text-gray-400">F25-106 · University of Lahore</p>
+          <p className="text-xs text-white/40 font-bold uppercase tracking-widest">Speak2Design v2.0.0</p>
+          <p className="text-xs text-white/40">F25-106 · University of Lahore</p>
         </div>
       </div>
     </div>

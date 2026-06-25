@@ -448,6 +448,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [usageCount, setUsageCount] = useState(0);
+  const [dailyRemaining, setDailyRemaining] = useState<number | 'unlimited' | null>(null);
   const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
   const [showExportModal, setShowExportModal] = useState(false);
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
@@ -770,6 +771,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
     // Sync usage stats from authoritative server response
     if (typeof data.usageCount === 'number') setUsageCount(data.usageCount);
     if (data.tier) setUserTier(data.tier);
+    if (data.commandsRemaining !== undefined) setDailyRemaining(data.commandsRemaining);
 
     if (data.clarification_needed) {
       setClarificationMessage(data.message);
@@ -1322,7 +1324,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
   };
 
   return (
-    <div className="h-screen bg-[#f1f5f9] flex flex-col pt-16 font-['Inter',_sans-serif]">
+    <div className="h-screen bg-[#0b1120] flex flex-col pt-16">
 
       {/* Export Modal */}
       <AnimatePresence>
@@ -1378,22 +1380,22 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       </AnimatePresence>
 
       {/* ── Toolbar ── */}
-      <div className="h-14 bg-white border-b border-gray-200 px-4 flex items-center justify-between z-10 shadow-sm">
+      <div className="h-14 glass border-b border-white/10 px-4 flex items-center justify-between z-10">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600">
+          <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <div className="h-6 w-px bg-gray-200" />
+          <div className="h-6 w-px bg-white/10" />
           <input
             value={projectTitle}
             onChange={e => setProjectTitle(e.target.value)}
-            className="font-bold text-gray-900 bg-transparent border-none outline-none hover:bg-gray-50 focus:bg-gray-50 px-2 py-1 rounded-lg transition-colors text-sm"
+            className="font-bold text-white bg-transparent border-none outline-none hover:bg-white/5 focus:bg-white/5 px-2 py-1 rounded-lg transition-colors text-sm"
           />
           {/* Active page breadcrumb */}
           {activePageId && pages.length > 0 && (
-            <div className="flex items-center gap-1 text-xs text-gray-400">
+            <div className="flex items-center gap-1 text-xs text-white/35">
               <span>/</span>
-              <span className="font-medium text-gray-600">
+              <span className="font-medium text-white/55">
                 {pages.find(p => p._id === activePageId)?.name ?? 'Page'}
               </span>
             </div>
@@ -1404,29 +1406,40 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
           {userTier === 'free' && (
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${
               usageCount >= FREE_TIER_LIMIT
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : 'bg-amber-50 border-amber-200 text-amber-700'
+                ? 'bg-rose-500/15 border-rose-400/30 text-rose-300'
+                : 'bg-amber-500/15 border-amber-400/30 text-amber-300'
             }`}>
               <Zap className="w-3.5 h-3.5" />
               {usageCount}/{FREE_TIER_LIMIT} commands
             </div>
           )}
+          {/* Daily voice quota — shown after first voice command response */}
+          {userTier === 'free' && dailyRemaining !== null && dailyRemaining !== 'unlimited' && (
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${
+              (dailyRemaining as number) === 0
+                ? 'bg-rose-500/15 border-rose-400/30 text-rose-300'
+                : 'glass text-white/60'
+            }`} title="Daily voice commands remaining">
+              <Zap className="w-3.5 h-3.5" />
+              {dailyRemaining as number}/day left
+            </div>
+          )}
           {userTier === 'premium' && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-xs font-bold">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-indigo/20 border border-brand-violet/30 rounded-lg text-brand-cyan text-xs font-bold">
               <Crown className="w-3.5 h-3.5" /> Premium
             </div>
           )}
           <button onClick={handleUndoAction} disabled={historyPointer <= 0}
-            className="p-2 hover:bg-gray-100 disabled:opacity-30 rounded-lg text-gray-600" title="Undo">
+            className="p-2 hover:bg-white/10 disabled:opacity-30 rounded-lg text-white/60" title="Undo">
             <Undo2 className="w-4 h-4" />
           </button>
           <button onClick={handleRedoAction} disabled={historyPointer >= historyStack.length - 1}
-            className="p-2 hover:bg-gray-100 disabled:opacity-30 rounded-lg text-gray-600" title="Redo">
+            className="p-2 hover:bg-white/10 disabled:opacity-30 rounded-lg text-white/60" title="Redo">
             <Redo2 className="w-4 h-4" />
           </button>
           <button
             onClick={() => setTtsEnabled(p => !p)}
-            className={`p-2 rounded-lg transition-colors ${ttsEnabled ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:bg-gray-100'}`}
+            className={`p-2 rounded-lg transition-colors ${ttsEnabled ? 'text-brand-cyan bg-brand-cyan/10' : 'text-white/40 hover:bg-white/10'}`}
             title={ttsEnabled ? 'Disable Voice Feedback' : 'Enable Voice Feedback'}
           >
             {ttsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -1435,9 +1448,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
           {/* Auto-save status indicator */}
           {autoSaveStatus !== 'idle' && (
             <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              autoSaveStatus === 'saving' ? 'text-blue-600 bg-blue-50' :
-              autoSaveStatus === 'saved'  ? 'text-green-600 bg-green-50' :
-              'text-red-600 bg-red-50'
+              autoSaveStatus === 'saving' ? 'text-brand-cyan bg-brand-cyan/10' :
+              autoSaveStatus === 'saved'  ? 'text-emerald-300 bg-emerald-500/10' :
+              'text-rose-300 bg-rose-500/10'
             }`}>
               {autoSaveStatus === 'saving' && <Loader2 className="w-3 h-3 animate-spin" />}
               {autoSaveStatus === 'saved'  && <Check className="w-3 h-3" />}
@@ -1451,23 +1464,23 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
             <button
               onClick={() => setShowThemePicker(p => !p)}
               title="Apply color theme"
-              className="flex items-center gap-1.5 px-3 py-2 bg-pink-50 border border-pink-200 text-pink-700 rounded-lg text-sm font-bold hover:bg-pink-100 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 glass text-brand-pink rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
             >
               <Palette className="w-4 h-4" />
               Theme
             </button>
             {showThemePicker && (
-              <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl p-3 z-50 w-40">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Color Themes</p>
+              <div className="absolute right-0 top-full mt-2 glass-strong border border-white/10 rounded-2xl shadow-xl p-3 z-50 w-40">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 px-1">Color Themes</p>
                 {THEMES.map(t => (
                   <button key={t.id} onClick={() => applyColorTheme(t.id)}
-                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-gray-50 text-left transition-colors">
+                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-white/10 text-left transition-colors">
                     <span className={`w-3 h-3 rounded-full flex-shrink-0 ${t.dot}`} />
-                    <span className="text-sm font-semibold text-gray-700">{t.label}</span>
+                    <span className="text-sm font-semibold text-white/80">{t.label}</span>
                   </button>
                 ))}
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                  <p className="text-[10px] text-gray-400 px-1 leading-relaxed">Swaps primary colors. Ctrl+Z to undo.</p>
+                <div className="mt-2 pt-2 border-t border-white/10">
+                  <p className="text-[10px] text-white/40 px-1 leading-relaxed">Swaps primary colors. Ctrl+Z to undo.</p>
                 </div>
               </div>
             )}
@@ -1478,24 +1491,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
             <button
               onClick={() => { setShowFontPicker(p => !p); setShowThemePicker(false); }}
               title="Change canvas font"
-              className="flex items-center gap-1.5 px-3 py-2 bg-sky-50 border border-sky-200 text-sky-700 rounded-lg text-sm font-bold hover:bg-sky-100 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 glass text-brand-cyan rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
             >
               <Type className="w-4 h-4" />
               {canvasFont === 'Inter' ? 'Font' : canvasFont.split(' ')[0]}
             </button>
             {showFontPicker && (
-              <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl p-3 z-50 w-52">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Canvas Font</p>
+              <div className="absolute right-0 top-full mt-2 glass-strong border border-white/10 rounded-2xl shadow-xl p-3 z-50 w-52">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 px-1">Canvas Font</p>
                 {FONTS.map(f => (
                   <button
                     key={f.name}
                     onClick={() => { setCanvasFont(f.name); setShowFontPicker(false); toast.success(`Font set to ${f.name}`); }}
                     className={`w-full flex items-center justify-between px-2 py-2 rounded-xl transition-colors text-left ${
-                      canvasFont === f.name ? 'bg-sky-50 text-sky-700' : 'hover:bg-gray-50 text-gray-700'
+                      canvasFont === f.name ? 'bg-brand-cyan/10 text-brand-cyan' : 'hover:bg-white/10 text-white/75'
                     }`}
                   >
                     <span className="text-sm font-semibold">{f.name}</span>
-                    {canvasFont === f.name && <Check className="w-3.5 h-3.5 text-sky-600" />}
+                    {canvasFont === f.name && <Check className="w-3.5 h-3.5 text-brand-cyan" />}
                   </button>
                 ))}
               </div>
@@ -1508,7 +1521,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
               if (!projectId) { toast.error('Save the project first before sharing.'); return; }
               setShowShareModal(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm font-bold hover:bg-orange-100 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 glass text-brand-amber rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
             title="Share project"
           >
             <Share2 className="w-4 h-4" />
@@ -1520,7 +1533,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
               if (pages.length === 0) { toast.error('No pages found — save the project first.'); return; }
               setShowPreview(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-sm font-bold hover:bg-emerald-100 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 glass text-emerald-300 rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
             title="Preview website"
           >
             <Eye className="w-4 h-4" />
@@ -1528,15 +1541,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
           </button>
           <button
             onClick={() => setShowTemplateLibrary(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 border border-violet-200 text-violet-700 rounded-lg text-sm font-bold hover:bg-violet-100 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 glass text-brand-violet rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
             title="Browse template library"
           >
             <LayoutTemplate className="w-4 h-4" />
             Templates
           </button>
-          <div className="h-6 w-px bg-gray-200 mx-1" />
+          <div className="h-6 w-px bg-white/10 mx-1" />
           <button onClick={handleSaveProject} disabled={isSaving || !projectId}
-            className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 disabled:opacity-50 transition-colors">
+            className="flex items-center gap-2 glass text-white px-4 py-2 rounded-lg text-sm font-bold hover:border-white/25 disabled:opacity-50 transition-colors">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save
           </button>
@@ -1545,9 +1558,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
               if (canvasState.length === 0) { toast.error('Canvas is empty — add components first.'); return; }
               setShowExportModal(true);
             }}
-            className="flex items-center gap-2 bg-[#0052CC] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#0047b3] transition-colors"
+            className="group relative flex items-center gap-2 overflow-hidden text-white px-4 py-2 rounded-lg text-sm font-bold shadow-[0_0_25px_-8px_rgba(99,102,241,.8)]"
           >
-            <Code2 className="w-4 h-4" /> Export Code
+            <span className="absolute inset-0 anim-gradient" style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }} />
+            <span className="relative z-10 flex items-center gap-2"><Code2 className="w-4 h-4" /> Export Code</span>
           </button>
         </div>
       </div>
@@ -1555,24 +1569,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       <div className="flex-1 flex overflow-hidden">
 
         {/* ── Left Panel ── */}
-        <div className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
+        <div className="w-64 glass border-r border-white/10 flex flex-col overflow-hidden">
           <div className="p-4 flex-1 overflow-y-auto space-y-5">
 
             {/* Language Toggle */}
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Voice Language</p>
-              <div className="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-xl">
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 ml-1">Voice Language</p>
+              <div className="grid grid-cols-2 gap-1 bg-white/5 p-1 rounded-xl">
                 {(['English', 'Urdu'] as const).map(lang => (
                   <button key={lang} onClick={() => setLanguage(lang)}
                     className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      language === lang ? 'bg-white text-[#0052CC] shadow-sm' : 'text-gray-500'
+                      language === lang ? 'bg-white/15 text-brand-cyan shadow-sm' : 'text-white/45'
                     }`}>
                     {lang === 'Urdu' ? 'اردو (Urdu)' : 'English'}
                   </button>
                 ))}
               </div>
               {language === 'Urdu' && (
-                <p className="text-[10px] text-blue-500 mt-1.5 ml-1">
+                <p className="text-[10px] text-brand-cyan mt-1.5 ml-1">
                   🎙 Gemini AI will transcribe your Urdu speech.
                 </p>
               )}
@@ -1580,8 +1594,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 
             {/* Clarification Alert */}
             {clarificationMessage && (
-              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
-                <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-400/30 rounded-xl text-xs text-amber-200">
+                <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold mb-0.5">Clarification Needed</p>
                   <p>{clarificationMessage}</p>
@@ -1591,9 +1605,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 
             {/* Text Command */}
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Text Command</p>
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 ml-1">Text Command</p>
               <form onSubmit={dispatchTextCommand}>
                 <textarea
+                  id="s2d-command-textarea"
                   value={textCommand}
                   onChange={e => setTextCommand(e.target.value)}
                   onKeyDown={e => {
@@ -1606,14 +1621,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                       : 'e.g., add a hero section with blue gradient...'
                   }
                   dir={language === 'Urdu' ? 'rtl' : 'ltr'}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-brand-violet/60 resize-none"
                 />
                 <button type="submit" disabled={isProcessingAI || !textCommand.trim()}
-                  className="mt-2 w-full bg-[#0052CC] text-white py-2 rounded-xl text-xs font-bold hover:bg-[#0047b3] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
-                  {isProcessingAI
-                    ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processing…</>
-                    : 'Generate →'
-                  }
+                  className="group relative mt-2 w-full overflow-hidden text-white py-2 rounded-xl text-xs font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-[0_0_22px_-8px_rgba(99,102,241,.8)]">
+                  <span className="absolute inset-0 anim-gradient" style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }} />
+                  <span className="relative z-10 inline-flex items-center gap-2">
+                    {isProcessingAI
+                      ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processing…</>
+                      : 'Generate →'}
+                  </span>
                 </button>
               </form>
             </div>
@@ -1625,30 +1642,30 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                   onClick={() => setShowCommandLog(p => !p)}
                   className="w-full flex items-center justify-between mb-2 ml-1"
                 >
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1.5">
                     <History className="w-3 h-3" /> History ({commandLog.length})
                   </p>
-                  {showCommandLog ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                  {showCommandLog ? <ChevronUp className="w-3 h-3 text-white/40" /> : <ChevronDown className="w-3 h-3 text-white/40" />}
                 </button>
                 {showCommandLog && (
                   <div className="space-y-1.5">
                     {commandLog.slice(0, 10).map(entry => (
                       <div key={entry.id}
-                        className="p-2 bg-gray-50 border border-gray-100 rounded-xl flex items-start gap-2 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all"
+                        className="p-2 bg-white/5 border border-white/10 rounded-xl flex items-start gap-2 cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all"
                         onClick={() => setTextCommand(entry.command.endsWith('…') ? entry.command.slice(0, -1) : entry.command)}
                         title="Click to reuse this command"
                       >
                         <div className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                          entry.type === 'voice' ? 'bg-red-100' : 'bg-blue-100'
+                          entry.type === 'voice' ? 'bg-brand-pink/20' : 'bg-brand-indigo/20'
                         }`}>
                           {entry.type === 'voice'
-                            ? <Mic className="w-2.5 h-2.5 text-red-600" />
-                            : <Type className="w-2.5 h-2.5 text-blue-600" />
+                            ? <Mic className="w-2.5 h-2.5 text-brand-pink" />
+                            : <Type className="w-2.5 h-2.5 text-brand-cyan" />
                           }
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] text-gray-700 leading-snug break-words line-clamp-2">{entry.command}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
+                          <p className="text-[11px] text-white/70 leading-snug break-words line-clamp-2">{entry.command}</p>
+                          <p className="text-[10px] text-white/35 mt-0.5">
                             {entry.count} component{entry.count !== 1 ? 's' : ''} · {entry.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
@@ -1656,7 +1673,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                     ))}
                     <button
                       onClick={() => setCommandLog([])}
-                      className="w-full text-[10px] text-gray-400 hover:text-red-500 py-1 transition-colors"
+                      className="w-full text-[10px] text-white/40 hover:text-rose-400 py-1 transition-colors"
                     >
                       Clear history
                     </button>
@@ -1683,31 +1700,31 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
             {/* Layers */}
             <div>
               <div className="flex items-center justify-between mb-2 ml-1">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
                   Layers ({canvasState.length})
                 </p>
               </div>
               {/* Layer search */}
               {canvasState.length > 2 && (
                 <div className="relative mb-2">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40 pointer-events-none" />
                   <input
                     type="text"
                     value={layerSearch}
                     onChange={e => setLayerSearch(e.target.value)}
                     placeholder="Search layers…"
-                    className="w-full pl-7 pr-6 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-400"
+                    className="w-full pl-7 pr-6 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/30 outline-none focus:ring-1 focus:ring-brand-violet/60"
                   />
                   {layerSearch && (
                     <button onClick={() => setLayerSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
                       <X className="w-3 h-3" />
                     </button>
                   )}
                 </div>
               )}
               {canvasState.length === 0 ? (
-                <p className="text-xs text-gray-400 italic p-2">No layers yet.</p>
+                <p className="text-xs text-white/35 italic p-2">No layers yet.</p>
               ) : (
                 <div className="space-y-1">
                   {canvasState.filter(c =>
@@ -1723,19 +1740,19 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                       onClick={() => setSelectedComponentId(comp.id)}
                       className={`group w-full flex items-center gap-1 p-2 rounded-xl text-sm transition-all cursor-pointer ${
                         dragOverId === comp.id
-                          ? 'bg-blue-100 border-2 border-blue-400'
+                          ? 'bg-brand-violet/20 border-2 border-brand-violet/50'
                           : selectedComponentId === comp.id
-                          ? 'bg-blue-50 border border-blue-200 text-blue-900 font-medium'
-                          : 'hover:bg-gray-50 text-gray-700'
+                          ? 'bg-brand-indigo/15 border border-brand-violet/30 text-white font-medium'
+                          : 'hover:bg-white/5 text-white/65 border border-transparent'
                       }`}
                     >
-                      <GripVertical className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 cursor-grab" />
+                      <GripVertical className="w-3.5 h-3.5 text-white/25 flex-shrink-0 cursor-grab" />
                       <span className="truncate text-xs flex-1 min-w-0">{comp.name}</span>
                       {/* Duplicate */}
                       <button
                         onClick={e => { e.stopPropagation(); duplicateComponent(comp.id); }}
                         title="Duplicate"
-                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-500 rounded transition-all flex-shrink-0"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-white/40 hover:text-brand-cyan rounded transition-all flex-shrink-0"
                       >
                         <Copy className="w-3 h-3" />
                       </button>
@@ -1743,7 +1760,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                       <button
                         onClick={e => { e.stopPropagation(); removeComponent(comp.id); }}
                         title="Delete"
-                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 rounded transition-all flex-shrink-0"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-white/40 hover:text-rose-400 rounded transition-all flex-shrink-0"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -1764,7 +1781,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                     speakTTS('Canvas cleared.');
                   }
                 }}
-                className="w-full py-2 text-xs font-bold text-red-500 border border-red-200 rounded-xl hover:bg-red-50 transition-colors"
+                className="w-full py-2 text-xs font-bold text-rose-400 border border-rose-400/30 rounded-xl hover:bg-rose-500/10 transition-colors"
               >
                 Clear Canvas
               </button>
@@ -1844,7 +1861,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 
                   {/* Text */}
                   <button
-                    onClick={() => { const el = document.querySelector<HTMLTextAreaElement>('textarea[placeholder*="hero"]'); el?.focus(); }}
+                    onClick={() => { document.getElementById('s2d-command-textarea')?.focus(); }}
                     className="group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-violet-400 hover:bg-violet-50 bg-gray-50 transition-all text-center cursor-pointer"
                   >
                     <div className="w-12 h-12 bg-violet-100 group-hover:bg-violet-200 rounded-2xl flex items-center justify-center transition-colors">
@@ -1913,37 +1930,52 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
               </div>
             )}
 
-            {/* Mic Button */}
+            {/* Mic Command Center */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-              <button
-                type="button"
-                aria-label={isListening ? 'Release to generate from your voice command' : 'Hold to speak a voice command'}
-                aria-pressed={isListening}
-                onMouseDown={activateAudioCaptureStream}
-                onMouseUp={terminateAudioCaptureStream}
-                onTouchStart={activateAudioCaptureStream}
-                onTouchEnd={terminateAudioCaptureStream}
-                disabled={isProcessingAI}
-                className={`group relative flex items-center gap-3 ${
-                  isListening
-                    ? 'bg-red-600 scale-105 shadow-red-500/40'
-                    : 'bg-[#0052CC] hover:bg-[#0047b3] shadow-blue-500/40'
-                } text-white pl-4 pr-6 py-3 rounded-full font-bold shadow-2xl transition-all transform active:scale-95 disabled:opacity-60`}
-              >
-                <div className="relative">
-                  {isListening && (
-                    <motion.div
-                      animate={{ scale: [0.6, 0, 0.6] }}
-                      transition={{ duration: 1.2, repeat: Infinity }}
-                      className="absolute inset-0 bg-white rounded-full"
+              <div className="relative flex items-center justify-center">
+                {/* Pulsing concentric rings while listening */}
+                <AnimatePresence>
+                  {isListening && [0, 1, 2].map(i => (
+                    <motion.span
+                      key={i}
+                      initial={{ scale: 0.7, opacity: 0.5 }}
+                      animate={{ scale: 2.4, opacity: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.5, ease: 'easeOut' }}
+                      className="pointer-events-none absolute inset-0 rounded-full"
+                      style={{ background: 'radial-gradient(circle, rgba(236,72,153,.5), transparent 70%)' }}
                     />
-                  )}
-                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                    <Mic className="w-4 h-4" />
-                  </div>
-                </div>
-                {isListening ? 'Release to Generate' : isProcessingAI ? 'Processing…' : 'Hold to Speak'}
-              </button>
+                  ))}
+                </AnimatePresence>
+
+                <button
+                  type="button"
+                  aria-label={isListening ? 'Release to generate from your voice command' : 'Hold to speak a voice command'}
+                  aria-pressed={isListening}
+                  onMouseDown={activateAudioCaptureStream}
+                  onMouseUp={terminateAudioCaptureStream}
+                  onTouchStart={activateAudioCaptureStream}
+                  onTouchEnd={terminateAudioCaptureStream}
+                  disabled={isProcessingAI}
+                  className={`group relative z-10 flex items-center gap-3 overflow-hidden text-white pl-4 pr-6 py-3 rounded-full font-bold shadow-2xl transition-transform active:scale-95 disabled:opacity-70 ${
+                    isListening ? 'scale-105 shadow-[0_0_50px_-8px_rgba(236,72,153,.8)]' : 'shadow-[0_0_45px_-10px_rgba(99,102,241,.8)]'
+                  }`}
+                >
+                  <span className="absolute inset-0 anim-gradient" style={{
+                    background: isListening
+                      ? 'linear-gradient(120deg,#ec4899,#8b5cf6,#ef4444)'
+                      : 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)'
+                  }} />
+                  <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                    {isProcessingAI
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Mic className="w-4 h-4" />}
+                  </span>
+                  <span className="relative z-10">
+                    {isListening ? 'Release to Generate' : isProcessingAI ? 'AI is thinking…' : 'Hold to Speak'}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
           </div> {/* /zoom wrapper */}
@@ -1952,43 +1984,46 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
           <AnimatePresence>
             {isListening && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="mt-4 w-full max-w-2xl bg-gray-900 border border-white/10 p-4 rounded-2xl text-center shadow-xl">
+                className="mt-4 w-full max-w-2xl glass-strong gradient-border p-4 rounded-2xl text-center shadow-xl glow-cyan">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-pink opacity-70" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-pink" />
+                  </span>
+                  <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">
                     Voice Capture Active — {language}
                   </span>
                 </div>
                 <div className="flex items-center justify-center gap-1 h-8 mb-2">
-                  {[1,2,3,4,5,6,7,8].map(i => (
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(i => (
                     <motion.div key={i}
-                      animate={{ height: [8, 24, 12, 28, 10][i % 5] }}
-                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.1 }}
-                      className="w-1 bg-blue-400 rounded-full"
+                      animate={{ height: [8, 26, 12, 30, 10][i % 5] }}
+                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.08 }}
+                      className="w-1 rounded-full bg-gradient-to-t from-brand-cyan to-brand-violet"
                     />
                   ))}
                 </div>
-                <p className="text-sm font-medium text-blue-200 min-h-[20px]">{transcription}</p>
+                <p className="text-sm font-medium text-brand-cyan min-h-[20px]">{transcription}</p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {/* ── Right Inspector ── */}
-        <div className="w-72 bg-white border-l border-gray-200 flex flex-col overflow-y-auto p-5">
-          <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
-            <h3 className="font-bold text-gray-900 uppercase text-xs tracking-widest">Inspector</h3>
-            <Settings2 className="w-4 h-4 text-gray-400" />
+        <div className="w-72 glass border-l border-white/10 flex flex-col overflow-y-auto p-5">
+          <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
+            <h3 className="font-bold text-white uppercase text-xs tracking-widest">Inspector</h3>
+            <Settings2 className="w-4 h-4 text-white/40" />
           </div>
 
           {activeComponent ? (
             <div className="space-y-4">
               {/* Inspector tab switcher */}
-              <div className="flex bg-gray-100 rounded-xl p-0.5">
+              <div className="flex bg-white/5 rounded-xl p-0.5">
                 {(['properties', 'code'] as const).map(tab => (
                   <button key={tab} onClick={() => setInspectorTab(tab)}
                     className={`flex-1 py-1.5 text-xs font-bold rounded-lg capitalize transition-all ${
-                      inspectorTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      inspectorTab === tab ? 'bg-white/15 text-white shadow-sm' : 'text-white/50 hover:text-white'
                     }`}>
                     {tab === 'code' ? '< / > HTML' : '⚙ Properties'}
                   </button>
@@ -1998,7 +2033,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
               {inspectorTab === 'properties' ? (<>
               {/* Editable component name */}
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Name</label>
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-1">Name</label>
                 <div className="flex gap-1">
                   <input
                     type="text"
@@ -2006,59 +2041,59 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
                     onBlur={nameDirty ? applyNameEdit : undefined}
                     onKeyDown={e => { if (e.key === 'Enter') applyNameEdit(); }}
-                    className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    className="flex-1 p-2 bg-white/5 border border-white/10 rounded-xl text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-brand-violet/60 focus:border-transparent"
                   />
                   {nameDirty && (
                     <button onClick={applyNameEdit}
-                      className="px-2 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">
+                      className="px-2 py-1.5 bg-brand-indigo text-white rounded-lg text-xs font-bold hover:bg-brand-violet transition-colors">
                       <Check className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Type</label>
-                <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 font-mono">
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-1">Type</label>
+                <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white/60 font-mono">
                   {activeComponent.type}
                 </div>
               </div>
 
               {/* Layout & Size */}
-              <div className="border-t border-gray-100 pt-4 space-y-3">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Layout & Size</label>
+              <div className="border-t border-white/10 pt-4 space-y-3">
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Layout & Size</label>
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-500 mb-1">Width</p>
-                  <div className="grid grid-cols-4 gap-1 bg-gray-100 p-1 rounded-lg">
+                  <p className="text-[10px] font-semibold text-white/50 mb-1">Width</p>
+                  <div className="grid grid-cols-4 gap-1 bg-white/5 p-1 rounded-lg">
                     {([['sm','S'],['md','M'],['lg','L'],['full','Full']] as const).map(([val, lbl]) => (
                       <button key={val}
                         onClick={() => updateComponentStyle(activeComponent.id, 'width', val)}
                         className={`py-1.5 text-[11px] font-bold rounded-md transition-all ${
-                          (activeComponent.styles?.width || 'full') === val ? 'bg-white text-[#0052CC] shadow-sm' : 'text-gray-500'
+                          (activeComponent.styles?.width || 'full') === val ? 'bg-white/15 text-brand-cyan shadow-sm' : 'text-white/45'
                         }`}>{lbl}</button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-500 mb-1">Alignment</p>
-                  <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
+                  <p className="text-[10px] font-semibold text-white/50 mb-1">Alignment</p>
+                  <div className="grid grid-cols-3 gap-1 bg-white/5 p-1 rounded-lg">
                     {([['left','Left'],['center','Center'],['right','Right']] as const).map(([val, lbl]) => (
                       <button key={val}
                         onClick={() => updateComponentStyle(activeComponent.id, 'align', val)}
                         className={`py-1.5 text-[11px] font-bold rounded-md transition-all ${
-                          (activeComponent.styles?.align || 'center') === val ? 'bg-white text-[#0052CC] shadow-sm' : 'text-gray-500'
+                          (activeComponent.styles?.align || 'center') === val ? 'bg-white/15 text-brand-cyan shadow-sm' : 'text-white/45'
                         }`}>{lbl}</button>
                     ))}
                   </div>
-                  <p className="text-[9px] text-gray-400 mt-1">Alignment applies when width is below Full.</p>
+                  <p className="text-[9px] text-white/35 mt-1">Alignment applies when width is below Full.</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-500 mb-1">Spacing</p>
-                  <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
+                  <p className="text-[10px] font-semibold text-white/50 mb-1">Spacing</p>
+                  <div className="grid grid-cols-3 gap-1 bg-white/5 p-1 rounded-lg">
                     {([['compact','Compact'],['normal','Normal'],['spacious','Spacious']] as const).map(([val, lbl]) => (
                       <button key={val}
                         onClick={() => updateComponentStyle(activeComponent.id, 'spacing', val)}
                         className={`py-1.5 text-[11px] font-bold rounded-md transition-all ${
-                          (activeComponent.styles?.spacing || 'normal') === val ? 'bg-white text-[#0052CC] shadow-sm' : 'text-gray-500'
+                          (activeComponent.styles?.spacing || 'normal') === val ? 'bg-white/15 text-brand-cyan shadow-sm' : 'text-white/45'
                         }`}>{lbl}</button>
                     ))}
                   </div>
@@ -2067,7 +2102,7 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
 
               {/* Quick Style Actions */}
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Quick Style Actions</label>
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-2">Quick Style Actions</label>
                 <div className="space-y-1.5">
                   {[
                     `Make the ${activeComponent.name} dark themed`,
@@ -2078,20 +2113,20 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
                   ].map(suggestion => (
                     <button key={suggestion}
                       onClick={() => { setTextCommand(suggestion); toast.info('Command added to text box. Click Generate to apply.'); }}
-                      className="w-full text-left text-xs px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-all text-gray-600">
+                      className="w-full text-left text-xs px-3 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-brand-indigo/15 hover:border-brand-violet/30 hover:text-white transition-all text-white/60">
                       {suggestion}
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-gray-400 mt-2 italic">Click to populate text box, then hit Generate.</p>
+                <p className="text-[10px] text-white/35 mt-2 italic">Click to populate text box, then hit Generate.</p>
               </div>
 
               {/* Smart Regenerate */}
-              <div className="border-t border-gray-100 pt-4">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-amber-500" /> AI Regenerate
+              <div className="border-t border-white/10 pt-4">
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-2 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-brand-amber" /> AI Regenerate
                 </label>
-                <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                <p className="text-[11px] text-white/50 mb-2 leading-relaxed">
                   Describe how to remake this component.
                 </p>
                 <textarea
@@ -2100,12 +2135,12 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleRegenerate(); } }}
                   placeholder={`e.g. "make it dark with a gradient background"`}
                   rows={2}
-                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs resize-none outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                  className="w-full p-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/30 resize-none outline-none focus:ring-2 focus:ring-brand-amber/50 focus:border-transparent"
                 />
                 <button
                   onClick={handleRegenerate}
                   disabled={isRegenerating || !regenPrompt.trim() || !projectId}
-                  className="mt-2 w-full flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-2 w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-brand-amber to-brand-pink text-white font-bold py-2 rounded-xl text-xs transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isRegenerating
                     ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Regenerating…</>
@@ -2116,10 +2151,10 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
 
               {/* Actions */}
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Actions</label>
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-2">Actions</label>
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   <button onClick={() => duplicateComponent(activeComponent.id)}
-                    className="flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold py-2 rounded-xl text-xs transition-colors">
+                    className="flex items-center justify-center gap-1.5 bg-brand-indigo/15 hover:bg-brand-indigo/25 text-brand-cyan border border-brand-violet/30 font-bold py-2 rounded-xl text-xs transition-colors">
                     <Copy className="w-3.5 h-3.5" /> Duplicate
                   </button>
                   <button
@@ -2132,7 +2167,7 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
                       localStorage.setItem('s2d_library', JSON.stringify(lib));
                       toast.success(`"${activeComponent.name}" saved to My Library!`);
                     }}
-                    className="flex items-center justify-center gap-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 font-bold py-2 rounded-xl text-xs transition-colors"
+                    className="flex items-center justify-center gap-1.5 bg-brand-violet/15 hover:bg-brand-violet/25 text-brand-violet border border-brand-violet/30 font-bold py-2 rounded-xl text-xs transition-colors"
                     title="Save to My Library"
                   >
                     <BookMarked className="w-3.5 h-3.5" /> Save
@@ -2141,17 +2176,17 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   <button onClick={() => moveComponent(activeComponent.id, 'up')}
                     disabled={canvasState.findIndex(c => c.id === activeComponent.id) === 0}
-                    className="flex items-center justify-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                    className="flex items-center justify-center gap-1 bg-white/5 hover:bg-white/10 text-white/60 border border-white/10 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                     <ArrowUp className="w-3.5 h-3.5" /> Move Up
                   </button>
                   <button onClick={() => moveComponent(activeComponent.id, 'down')}
                     disabled={canvasState.findIndex(c => c.id === activeComponent.id) === canvasState.length - 1}
-                    className="flex items-center justify-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                    className="flex items-center justify-center gap-1 bg-white/5 hover:bg-white/10 text-white/60 border border-white/10 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                     <ArrowDown className="w-3.5 h-3.5" /> Move Down
                   </button>
                 </div>
                 <button onClick={() => removeComponent(activeComponent.id)}
-                  className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold py-2.5 rounded-xl text-xs transition-colors">
+                  className="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-400/30 font-bold py-2.5 rounded-xl text-xs transition-colors">
                   Delete Component
                 </button>
               </div>
@@ -2159,34 +2194,34 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
               /* HTML Editor tab */
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">HTML Editor</label>
-                  <span className="text-[10px] text-gray-400 font-mono">{editingHTML.length.toLocaleString()} chars</span>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">HTML Editor</label>
+                  <span className="text-[10px] text-white/40 font-mono">{editingHTML.length.toLocaleString()} chars</span>
                 </div>
-                <p className="text-[11px] text-gray-500 leading-relaxed">
+                <p className="text-[11px] text-white/50 leading-relaxed">
                   Edit raw Tailwind HTML. Hit "Apply" to update the canvas.
                 </p>
                 <textarea
                   value={editingHTML}
                   onChange={e => { setEditingHTML(e.target.value); setHtmlDirty(true); }}
                   spellCheck={false}
-                  className="w-full h-72 p-3 bg-gray-900 text-green-400 text-[11px] font-mono leading-relaxed rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700"
+                  className="w-full h-72 p-3 bg-[#0b1120] text-emerald-300 text-[11px] font-mono leading-relaxed rounded-xl resize-none outline-none focus:ring-2 focus:ring-brand-violet/60 border border-white/10"
                 />
                 <div className="flex gap-2">
                   <button onClick={applyHTMLEdit} disabled={!htmlDirty}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-brand-indigo hover:bg-brand-violet text-white font-bold py-2.5 rounded-xl text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     <Check className="w-3.5 h-3.5" /> Apply Changes
                   </button>
                   <button onClick={() => { setEditingHTML(activeComponent.htmlContent); setHtmlDirty(false); }}
                     disabled={!htmlDirty}
-                    className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    className="px-3 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 font-bold rounded-xl text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     Revert
                   </button>
                 </div>
-                {htmlDirty && <p className="text-[10px] text-amber-600">⚠ Unsaved HTML changes</p>}
-                <div className="border-t border-gray-100 pt-3 space-y-1 text-[10px] text-gray-500">
-                  <p className="font-bold text-gray-400 uppercase tracking-widest mb-1">Tips</p>
+                {htmlDirty && <p className="text-[10px] text-brand-amber">⚠ Unsaved HTML changes</p>}
+                <div className="border-t border-white/10 pt-3 space-y-1 text-[10px] text-white/50">
+                  <p className="font-bold text-white/40 uppercase tracking-widest mb-1">Tips</p>
                   <p>All Tailwind utilities work via CDN.</p>
-                  <p><kbd className="bg-gray-100 px-1 py-0.5 rounded font-mono">Ctrl+Z</kbd> undoes typing.</p>
+                  <p><kbd className="bg-white/10 px-1 py-0.5 rounded font-mono">Ctrl+Z</kbd> undoes typing.</p>
                 </div>
               </div>
               )}
@@ -2194,11 +2229,11 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="text-center py-6 text-gray-400 text-xs italic">
+              <div className="text-center py-6 text-white/40 text-xs italic">
                 Click a component on the canvas to inspect it.
               </div>
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Quick Commands</p>
+              <div className="border-t border-white/10 pt-4">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3">Quick Commands</p>
                 <div className="space-y-1.5">
                   {[
                     { cmd: 'Add a navbar', desc: 'Navigation bar' },
@@ -2209,9 +2244,9 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
                     { cmd: 'Add a footer', desc: 'Page footer' },
                   ].map(tip => (
                     <button key={tip.cmd} onClick={() => setTextCommand(tip.cmd)}
-                      className="w-full text-left p-2 rounded-lg border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-all group">
-                      <p className="text-xs font-bold text-gray-700 group-hover:text-blue-700">"{tip.cmd}"</p>
-                      <p className="text-[10px] text-gray-400">{tip.desc}</p>
+                      className="w-full text-left p-2 rounded-lg border border-white/10 hover:bg-brand-indigo/15 hover:border-brand-violet/30 transition-all group">
+                      <p className="text-xs font-bold text-white/70 group-hover:text-white">"{tip.cmd}"</p>
+                      <p className="text-[10px] text-white/35">{tip.desc}</p>
                     </button>
                   ))}
                 </div>

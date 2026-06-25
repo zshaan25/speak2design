@@ -10,14 +10,16 @@ import { Marketplace } from './components/Marketplace';
 import { Checkout } from './components/Checkout';
 import { SettingsScreen } from './components/Settings';
 import { PublicView } from './components/PublicView';
+import { Landing } from './components/Landing';
+import { AuroraBackground } from './design/AuroraBackground';
 import type { AppUser, Template } from './types';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:5000';
 
-type Page = 'signup' | 'dashboard' | 'workspace' | 'marketplace' | 'checkout' | 'settings' | 'public_view';
+type Page = 'landing' | 'signup' | 'dashboard' | 'workspace' | 'marketplace' | 'checkout' | 'settings' | 'public_view';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('signup');
+  const [currentPage, setCurrentPage] = useState<Page>('landing');
   const [user, setUser] = useState<AppUser | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('speak2design_token'));
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -39,18 +41,26 @@ export default function App() {
   }, []);
 
   // Handle OAuth (Google/GitHub) return: ?token=... on success, ?oauth_error=... on failure.
+  // Also handles Stripe Checkout redirect: ?purchase=success&templateId=...
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const oauthToken = params.get('token');
     const oauthError = params.get('oauth_error');
-    if (oauthToken || oauthError) {
+    const purchaseResult = params.get('purchase');
+
+    // Strip all handled query params from the URL before doing anything else.
+    if (oauthToken || oauthError || purchaseResult) {
       const url = new URL(window.location.href);
       url.searchParams.delete('token');
       url.searchParams.delete('oauth');
       url.searchParams.delete('oauth_error');
       url.searchParams.delete('provider');
+      url.searchParams.delete('purchase');
+      url.searchParams.delete('templateId');
+      url.searchParams.delete('purchase_cancelled');
       window.history.replaceState({}, '', url.toString());
     }
+
     if (oauthError) {
       const provider = params.get('provider') || 'provider';
       const msg = oauthError === 'not_configured'
@@ -65,6 +75,14 @@ export default function App() {
       setAuthToken(oauthToken);
       toast.success('Signed in successfully.');
     }
+
+    // Stripe Checkout Session return — webhook already fulfilled the purchase.
+    if (purchaseResult === 'success') {
+      setShowPurchaseSuccess(true);
+      toast.success('Payment confirmed! Template added to your library.');
+    } else if (purchaseResult === 'cancelled' || purchaseResult === 'cancel') {
+      toast.info('Checkout cancelled. Your card was not charged.');
+    }
   }, []);
 
   useEffect(() => {
@@ -75,7 +93,7 @@ export default function App() {
         setCurrentPage('signup');
         return;
       }
-      if (!authToken) { setCurrentPage('signup'); return; }
+      if (!authToken) { setCurrentPage('landing'); return; }
       try {
         const res = await fetch(`${API_BASE}/api/auth/profile`, {
           headers: { Authorization: `Bearer ${authToken}` }
@@ -100,7 +118,7 @@ export default function App() {
 
   const clearUserSession = () => {
     localStorage.removeItem('speak2design_token');
-    setAuthToken(null); setUser(null); setCurrentPage('signup');
+    setAuthToken(null); setUser(null); setCurrentPage('landing');
   };
 
   const handleAuthenticationSuccess = (token: string, userData: any) => {
@@ -161,6 +179,8 @@ export default function App() {
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'landing':
+        return <Landing onGetStarted={() => setCurrentPage('signup')} onExplore={() => setCurrentPage('signup')} />;
       case 'signup':
         return <SignUp onAuthSuccess={handleAuthenticationSuccess} />;
       case 'dashboard':
@@ -216,14 +236,16 @@ export default function App() {
   };
 
   const annotation = getAnnotationText();
-  // public_view and workspace are full-screen — no sidebar, no top nav, no annotation
-  const isFullScreen = currentPage === 'public_view' || currentPage === 'workspace';
-  const showSidebar  = !isFullScreen && !['signup'].includes(currentPage) && user !== null;
+  // landing + public_view are full-screen marketing/standalone pages (no nav, no annotation).
+  // workspace shows TopNavbar but not the sidebar (it has its own left panel).
+  const isFullScreen = currentPage === 'public_view' || currentPage === 'landing';
+  const showSidebar  = !isFullScreen && !['signup', 'workspace'].includes(currentPage) && user !== null;
   const showTopNav   = !isFullScreen && currentPage !== 'signup' && user !== null;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] font-['Inter',_sans-serif]">
-      <Toaster position="top-center" richColors />
+    <div className="relative min-h-screen text-white">
+      <AuroraBackground />
+      <Toaster position="top-center" richColors theme="dark" />
       {showTopNav && (
         <TopNavbar currentPage={currentPage} onNavigate={handleNavigate} user={user} />
       )}

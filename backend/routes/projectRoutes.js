@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import { requireAuthentication } from '../middleware/auth.js';
 import {
   createProject,
@@ -8,8 +9,22 @@ import {
   deleteProject,
   shareProject,
   regenerateShareToken,
-  getPublicProject
+  getPublicProject,
+  uploadThumbnail,
 } from '../controllers/projectController.js';
+
+// Memory storage for thumbnail uploads (PNG, max 5MB)
+const thumbnailUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'image/png' || file.mimetype === 'image/jpeg') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PNG or JPEG thumbnails are accepted.'));
+    }
+  },
+});
 
 const router = express.Router();
 
@@ -29,5 +44,8 @@ router.delete('/:id', requireAuthentication, deleteProject);
 // Share — toggle public/private, regenerate token
 router.post('/:id/share', requireAuthentication, shareProject);
 router.post('/:id/share/regenerate', requireAuthentication, regenerateShareToken);
+
+// Thumbnail upload (S3 — gracefully degraded if AWS not configured)
+router.post('/:id/thumbnail', requireAuthentication, thumbnailUpload.single('thumbnail'), uploadThumbnail);
 
 export default router;

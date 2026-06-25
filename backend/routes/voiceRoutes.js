@@ -5,10 +5,10 @@ import { transcribeAudioAndGenerateUI, processTextIntent } from '../controllers/
 
 const router = express.Router();
 
-// Memory buffer for audio uploads — 10MB limit
+// Memory buffer for audio uploads — 25MB limit (Whisper API maximum)
 const uploadStorageConfig = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp4'];
     if (allowed.includes(file.mimetype) || file.originalname.match(/\.(webm|ogg|wav|mp3|mp4|m4a)$/i)) {

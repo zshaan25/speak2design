@@ -1,10 +1,13 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'User full name field is mandatory.'],
-    trim: true
+    trim: true,
+    maxlength: [50, 'Name cannot exceed 50 characters.']
   },
   email: {
     type: String,
@@ -12,51 +15,70 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Provide a valid email composition address.']
+    match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Provide a valid email address.']
   },
   password: {
     type: String,
-    // Password is only required for local accounts. OAuth accounts (Google/GitHub)
-    // authenticate via the provider and have no local password.
-    required: [function () { return !this.googleId && !this.githubId; }, 'Security storage password hash parameter required.'],
-    minlength: [6, 'Password must consist of a minimum of 6 characters.']
+    required: [function () { return !this.googleId && !this.githubId; }, 'Password is required for local accounts.'],
+    minlength: [6, 'Password must be at least 6 characters.'],
+    select: false
   },
-  // ─── OAuth (Google / GitHub) ────────────────────────────────────────────────
-  googleId: { type: String, default: undefined },
-  githubId: { type: String, default: undefined },
-  authProvider: { type: String, enum: ['local', 'google', 'github'], default: 'local' },
-  avatarUrl: { type: String, default: '' },
-  // ─── Password reset ─────────────────────────────────────────────────────────
-  resetPasswordToken: { type: String, default: undefined },
-  resetPasswordExpires: { type: Date, default: undefined },
-  tier: {
-    type: String,
-    enum: ['free', 'premium'],
-    default: 'free'
-  },
-  usageCount: {
-    type: Number,
-    default: 0
-  },
-  // Free-tier command counter resets when now passes this timestamp (rolling 30-day window).
-  usageResetAt: {
-    type: Date,
-    default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-  },
-  // Templates this user has purchased from the marketplace (their library).
-  ownedTemplates: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Template'
+
+  // ─── Tier & usage ──────────────────────────────────────────────────────────
+  role: { type: String, enum: ['free', 'premium'], default: 'free' },
+  tier: { type: String, enum: ['free', 'premium'], default: 'free' },
+
+  usageCount:   { type: Number, default: 0 },
+  usageResetAt: { type: Date, default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+
+  voiceCommandsToday: { type: Number, default: 0 },
+  voiceCommandsDate:  { type: Date, default: Date.now },
+
+  // ─── Stripe ────────────────────────────────────────────────────────────────
+  stripeCustomerId: { type: String, default: null },
+  purchasedTemplates: [{
+    templateId:  { type: mongoose.Schema.Types.ObjectId, ref: 'Template' },
+    purchasedAt: { type: Date, default: Date.now }
   }],
-  // ─── Account status ─────────────────────────────────────────────────────────
-  // Deactivated accounts are blocked from logging in / using the API.
-  // Unlike deletion, deactivation is reversible by logging in again.
+  ownedTemplates: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Template' }],
+
+  // ─── OAuth ─────────────────────────────────────────────────────────────────
+  googleId:     { type: String, default: undefined },
+  githubId:     { type: String, default: undefined },
+  authProvider: { type: String, enum: ['local', 'google', 'github'], default: 'local' },
+
+  // ─── Password reset ────────────────────────────────────────────────────────
+  resetPasswordToken:   { type: String, default: undefined },
+  resetPasswordExpires: { type: Date,   default: undefined },
+
+  // ─── Deactivation ─────────────────────────────────────────────────────────
   isDeactivated: { type: Boolean, default: false },
-  deactivatedAt: { type: Date, default: undefined },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  deactivatedAt: { type: Date,    default: undefined },
+
 }, { timestamps: true });
+
+// ─── Indexes ──────────────────────────────────────────────────────────────────
+userSchema.index({ email: 1 });
+userSchema.index({ resetPasswordToken: 1 });
+
+// ─── Pre-save: hash password only when modified and not already hashed ────────
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  if (!this.password) return next();
+  // Guard against double-hashing when authController already hashes before save.
+  if (this.password.startsWith('$2')) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// ─── Instance methods ─────────────────────────────────────────────────────────
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+userSchema.methods.getSignedJWT = function () {
+  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+};
 
 export default mongoose.model('User', userSchema);

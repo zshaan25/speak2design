@@ -1,33 +1,36 @@
 // ── MUST be the very first import so process.env is populated before ANY other
-// module (oauthController, voiceController, etc.) reads it at load time.
-// In ESM all imports are hoisted, but they are evaluated left-to-right, so
-// listing 'dotenv/config' first guarantees it runs before the route modules.
+// module reads it at load time. In ESM imports are evaluated left-to-right.
 import 'dotenv/config';
 
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
 import compression from 'compression';
+import morgan from 'morgan';
 
-import authRoutes from './routes/authRoutes.js';
-import voiceRoutes from './routes/voiceRoutes.js';
-import projectRoutes from './routes/projectRoutes.js';
+import connectDB from './config/db.js';
+import { globalErrorHandler } from './middleware/error.js';
+
+import authRoutes        from './routes/authRoutes.js';
+import voiceRoutes       from './routes/voiceRoutes.js';
+import nlpRoutes         from './routes/nlp.js';
+import projectRoutes     from './routes/projectRoutes.js';
+import designRoutes      from './routes/designs.js';
 import marketplaceRoutes from './routes/marketplaceRoutes.js';
-import pageRoutes from './routes/pageRoutes.js';
+import pageRoutes        from './routes/pageRoutes.js';
+import dashboardRoutes   from './routes/dashboard.js';
+
 const app = express();
 
-// ─── CORS — allow localhost dev + production Vercel URL ───────────────────────
+// ─── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://speak2design.vercel.app',
-  // Add your custom domain here if you have one
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (Postman, mobile apps, curl)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS: Origin ${origin} not allowed`));
@@ -35,72 +38,70 @@ app.use(cors({
   credentials: true
 }));
 
-// gzip responses to cut bandwidth (resource optimization).
+// ─── Core Middleware ──────────────────────────────────────────────────────────
 app.use(compression());
+// Morgan: 'dev' in development, 'combined' in production
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// ── Stripe webhook needs raw body — mount BEFORE express.json() ───────────────
+// (imported inside marketplaceRoutes.js with express.raw on that specific route)
+app.use('/api/marketplace/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ─── Health Check ─────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => {
+// ─── Health Check (Segment 1 — must be at /api/health) ───────────────────────
+app.get('/api/health', (req, res) => {
   res.status(200).json({
-    status: 'active',
+    success: true,
+    message: 'Server running',
     system: 'Speak2Design Core Engine',
     version: '2.0.0',
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     environment: process.env.NODE_ENV || 'development'
   });
 });
 
+// Legacy health check — kept so existing monitors don't break
+app.get('/health', (req, res) => res.redirect('/api/health'));
+
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/voice', voiceRoutes);
-app.use('/api/projects', projectRoutes);
+app.use('/api/auth',        authRoutes);
+app.use('/api/voice',       voiceRoutes);
+app.use('/api/nlp',         nlpRoutes);
+app.use('/api/projects',    projectRoutes);
+app.use('/api/designs',     designRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
-// Page routes are mounted at /api so the full path is /api/projects/:id/pages/…
-app.use('/api', pageRoutes);
+app.use('/api/dashboard',   dashboardRoutes);
+// Page routes mounted at /api so full path is /api/projects/:id/pages/…
+app.use('/api',             pageRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found.` });
 });
 
-// ─── Global Error Handler ─────────────────────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error('>>> Unhandled error:', err.stack);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'An internal server error occurred.',
-    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
-  });
-});
+// ─── Global Error Handler (Segment 1) ────────────────────────────────────────
+app.use(globalErrorHandler);
 
-// ─── Database + Server Start ──────────────────────────────────────────────────
-const MONGODB_URI = process.env.MONGODB_URI;
+// ─── Boot ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 
-if (!MONGODB_URI) {
-  console.error('>>> FATAL: MONGODB_URI environment variable is not set.');
-  process.exit(1);
-}
-
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
-  console.error('>>> FATAL: JWT_SECRET is not set or too weak. Set a long random secret (32+ chars).');
+  console.error('>>> FATAL: JWT_SECRET is not set or too weak (min 16 chars).');
   process.exit(1);
 }
 
-if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.includes('YOUR_')) {
-  console.warn('>>> WARNING: GEMINI_API_KEY is not set or is a placeholder. Voice and AI features will fail.');
+if (!process.env.GROQ_API_KEY) {
+  console.warn('>>> WARNING: GROQ_API_KEY is not set. Voice and AI features will fail.');
 }
 
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('>>> MongoDB connected successfully.');
-    app.listen(PORT, () => {
-      console.log(`>>> Speak2Design backend running on port ${PORT}`);
-      console.log(`>>> Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
-  })
-  .catch((err) => {
-    console.error('>>> MongoDB connection failed:', err.message);
-    process.exit(1);
+connectDB().then(() => {
+
+  app.listen(PORT, () => {
+    console.log(`[Speak2Design] Server live on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
   });
+}).catch(err => {
+  console.error('>>> DB connection failed:', err.message);
+  process.exit(1);
+});

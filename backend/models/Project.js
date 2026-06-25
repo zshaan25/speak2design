@@ -39,6 +39,10 @@ const projectSchema = new mongoose.Schema({
     type: Number,
     default: -1
   },
+  thumbnailUrl: {
+    type: String,
+    default: null
+  },
   isPublic: {
     type: Boolean,
     default: false

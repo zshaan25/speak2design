@@ -1,145 +1,284 @@
-import Stripe from 'stripe';
+import crypto from 'crypto';
 import Template from '../models/Template.js';
-import User from '../models/User.js';
+import User     from '../models/User.js';
+import Project  from '../models/Project.js';
+import {
+  createStripeProduct,
+  createCheckoutSession,
+  constructWebhookEvent,
+} from '../services/stripe.js';
 
-// Stripe is optional: if no key is configured the app falls back to a simulated
-// purchase so evaluation never breaks (FR_10).
-const stripeClient = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const PKR_PER_USD = 280; // approximate; Stripe test charge is in USD
-
-// FR_10: create a Stripe PaymentIntent for a template purchase (test mode).
-export const createPaymentIntent = async (req, res) => {
-  try {
-    const template = await Template.findById(req.params.id);
-    if (!template) return res.status(404).json({ success: false, message: 'Template not found.' });
-
-    // No Stripe key → tell the client to use the simulated flow.
-    if (!stripeClient) {
-      return res.status(200).json({ success: true, simulated: true });
-    }
-
-    const amountCents = Math.max(50, Math.round((Number(template.price) / PKR_PER_USD) * 100));
-    const intent = await stripeClient.paymentIntents.create({
-      amount: amountCents,
-      currency: 'usd',
-      automatic_payment_methods: { enabled: true },
-      metadata: { templateId: template._id.toString(), userId: req.user._id.toString() }
-    });
-
-    return res.status(200).json({ success: true, simulated: false, clientSecret: intent.client_secret });
-  } catch (err) {
-    console.error('>>> PaymentIntent error:', err);
-    return res.status(500).json({ success: false, message: 'Could not initialise payment.' });
-  }
-};
-
-// Seed default templates if DB is empty
-const seedDefaultTemplates = async () => {
-  const count = await Template.countDocuments();
-  if (count === 0) {
-    await Template.insertMany([
-      { title: 'Modern Dashboard UI', description: 'A clean dashboard with charts and stats panels.', price: 2500, color: 'from-indigo-500 to-blue-600', imageUrl: '/previews/dashboard.svg', author: 'Ahmad Khan', rating: 4.8, sales: 124, lang: 'English', category: 'Dashboards', canvasSnapshot: [] },
-      { title: 'E-commerce Portfolio', description: 'Beautiful product listing page with cart.', price: 3500, color: 'from-rose-400 to-pink-600', imageUrl: '/previews/ecommerce.svg', author: 'Sarah Ahmed', rating: 4.9, sales: 98, lang: 'English', category: 'Landing Pages', canvasSnapshot: [] },
-      { title: 'اردو بلاگ ٹیمپلیٹ', description: 'Urdu RTL blog layout with clean typography.', price: 2000, color: 'from-cyan-500 to-teal-600', imageUrl: '/previews/blog.svg', author: 'Ali Raza', rating: 4.7, sales: 67, lang: 'Urdu', category: 'Blogs', canvasSnapshot: [] },
-      { title: 'SaaS Landing Page', description: 'Premium SaaS product page with hero and pricing.', price: 4500, color: 'from-emerald-500 to-green-600', imageUrl: '/previews/saas.svg', author: 'Zainab Bibi', rating: 5.0, sales: 215, lang: 'English', category: 'Landing Pages', canvasSnapshot: [] },
-      { title: 'Mobile App Kit', description: 'Complete mobile app UI kit with all screens.', price: 3000, color: 'from-amber-500 to-orange-600', imageUrl: '/previews/mobile.svg', author: 'Bilal Malik', rating: 4.6, sales: 89, lang: 'English', category: 'UI Kits', canvasSnapshot: [] },
-      { title: 'اردو پورٹ فولیو', description: 'Urdu portfolio site for freelancers.', price: 1500, color: 'from-blue-600 to-indigo-800', imageUrl: '/previews/portfolio.svg', author: 'Hassan Ali', rating: 4.8, sales: 45, lang: 'Urdu', category: 'Portfolio', canvasSnapshot: [] },
-    ]);
-    console.log('>>> Default marketplace templates seeded.');
-  }
-};
-seedDefaultTemplates();
-
-// Get all templates
+// ─── GET /api/marketplace ─────────────────────────────────────────────────────
 export const getTemplates = async (req, res) => {
   try {
-    const templates = await Template.find().sort({ sales: -1 });
+    const { category, lang, search } = req.query;
+    const filter = { isActive: true };
+    if (category) filter.category = category;
+    if (lang)     filter.lang     = lang;
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } }
+      ];
+    }
+    const templates = await Template.find(filter)
+      .sort({ createdAt: -1 })
+      .select('-canvasSnapshot -buyers')
+      .lean();
+
     return res.status(200).json({ success: true, templates });
   } catch (err) {
-    console.error('>>> Templates fetch error:', err);
+    console.error('>>> Get templates error:', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch templates.' });
   }
 };
 
-// Publish a new template — Premium-only (FR_09 freemium access control).
+// ─── POST /api/marketplace/publish ───────────────────────────────────────────
 export const publishTemplate = async (req, res) => {
   try {
-    if (req.user.tier !== 'premium') {
-      return res.status(403).json({
-        success: false,
-        premiumRequired: true,
-        message: 'Publishing to the marketplace is a Premium feature. Upgrade to publish your designs.'
-      });
+    const { title, description, price, language, tags, imageUrl, designId } = req.body;
+
+    if (!title || !description || price === undefined) {
+      return res.status(400).json({ success: false, message: 'title, description, and price are required.' });
     }
 
-    const { title, description, price, language, tags, color, imageUrl } = req.body;
-    if (!title || !description || !price) {
-      return res.status(400).json({ success: false, message: 'Title, description, and price are required.' });
+    // Premium-only gating
+    const seller = req.user;
+    if ((seller.tier || seller.role) !== 'premium') {
+      return res.status(403).json({ success: false, premiumRequired: true, message: 'Publishing requires a Premium account.' });
     }
-    const duplicate = await Template.findOne({ title: { $regex: new RegExp(`^${title}$`, 'i') } });
-    if (duplicate) {
-      return res.status(400).json({ success: false, message: 'A template with this title already exists. Please choose a unique name.' });
+
+    const priceNum = Number(price);
+    if (isNaN(priceNum) || priceNum < 0) {
+      return res.status(400).json({ success: false, message: 'Price must be a non-negative number.' });
     }
+
+    // MD5 uniqueness check
+    let canvasSnapshot = [];
+    if (designId) {
+      const sourceProject = await Project.findOne({ _id: designId, user: seller._id });
+      if (sourceProject) {
+        canvasSnapshot = sourceProject.canvasState || [];
+      }
+    }
+    const uniquenessHash = crypto.createHash('md5').update(JSON.stringify(canvasSnapshot)).digest('hex');
+
+    const existing = await Template.findOne({ uniquenessHash, isActive: true });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'An identical template is already listed on the marketplace.' });
+    }
+
+    // Create Stripe product if key configured and price > 0
+    let stripePriceId   = null;
+    let stripeProductId = null;
+
+    if (process.env.STRIPE_SECRET_KEY && priceNum > 0) {
+      try {
+        const { productId, priceId } = await createStripeProduct({
+          templateName: title,
+          description,
+          priceInCents: Math.round(priceNum * 100),
+        });
+        stripePriceId   = priceId;
+        stripeProductId = productId;
+      } catch (stripeErr) {
+        console.warn('>>> Stripe product creation skipped:', stripeErr.message);
+      }
+    }
+
     const template = await Template.create({
-      title, description,
-      price: Number(price),
-      lang: language || 'English',
-      color: color || 'from-blue-500 to-indigo-600',
-      imageUrl: imageUrl || '',
-      author: req.user.name,
-      canvasSnapshot: [],
-      sales: 0,
-      rating: 0
+      title,
+      name:            title,
+      description,
+      price:           priceNum,
+      lang:            language || 'English',
+      tags:            Array.isArray(tags) ? tags : (tags || '').split(',').map(t => t.trim()).filter(Boolean),
+      imageUrl:        imageUrl || '',
+      sellerId:        seller._id,
+      authorName:      seller.name,
+      author:          seller.name,
+      canvasSnapshot,
+      uniquenessHash,
+      stripePriceId,
+      stripeProductId,
+      isActive:        true,
+      designId:        designId || null,
     });
-    return res.status(201).json({ success: true, template, message: 'Template published to marketplace!' });
+
+    // Mark source design as public
+    if (designId) {
+      await Project.findOneAndUpdate(
+        { _id: designId, user: seller._id },
+        { isPublic: true }
+      );
+    }
+
+    return res.status(201).json({ success: true, message: 'Template published successfully!', template });
   } catch (err) {
-    console.error('>>> Template publish error:', err);
+    console.error('>>> Publish template error:', err);
     return res.status(500).json({ success: false, message: 'Failed to publish template.' });
   }
 };
 
-// Purchase a template — records ownership in the buyer's library (idempotent).
+// ─── POST /api/marketplace/checkout/:id ──────────────────────────────────────
+export const createCheckoutSessionHandler = async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id);
+    if (!template || !template.isActive) {
+      return res.status(404).json({ success: false, message: 'Template not found.' });
+    }
+
+    // Free templates — use purchase endpoint instead
+    if (!template.price || template.price === 0) {
+      return res.status(400).json({ success: false, message: 'Use /purchase for free templates.' });
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      // Simulated — no real Stripe key configured
+      return res.status(200).json({ success: true, simulated: true, message: 'Stripe not configured — payment simulated.' });
+    }
+
+    const session = await createCheckoutSession({
+      templateId:    template._id.toString(),
+      templateName:  template.title,
+      priceInCents:  Math.round(template.price * 100),
+      stripePriceId: template.stripePriceId,
+      successUrl:    `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?purchase=success&templateId=${template._id}`,
+      cancelUrl:     `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?purchase=cancelled`,
+    });
+
+    return res.status(200).json({ success: true, url: session.url, sessionId: session.id });
+  } catch (err) {
+    console.error('>>> Checkout session error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to create checkout session.' });
+  }
+};
+
+// ─── POST /api/marketplace/webhook ───────────────────────────────────────────
+export const webhookHandler = async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = constructWebhookEvent(req.body, sig);
+  } catch (err) {
+    console.error('>>> Webhook signature error:', err.message);
+    return res.status(400).json({ success: false, message: `Webhook Error: ${err.message}` });
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const templateId = session.metadata?.templateId;
+    const buyerEmail = session.customer_details?.email;
+
+    if (templateId) {
+      try {
+        const buyer = await User.findOne({ email: buyerEmail });
+        const template = await Template.findById(templateId);
+
+        if (buyer && template) {
+          // Idempotent — only add if not already in library
+          const alreadyOwns = buyer.purchasedTemplates.some(
+            p => p.templateId?.toString() === templateId
+          );
+          if (!alreadyOwns) {
+            buyer.purchasedTemplates.push({ templateId: template._id, purchasedAt: new Date() });
+            if (!buyer.ownedTemplates.includes(template._id)) {
+              buyer.ownedTemplates.push(template._id);
+            }
+            await buyer.save();
+          }
+
+          // Increment template sales/downloads
+          await Template.findByIdAndUpdate(templateId, { $inc: { sales: 1, downloads: 1 } });
+
+          console.log(`[Webhook] Fulfilled purchase: ${buyerEmail} → template ${templateId}`);
+        }
+      } catch (fulfillErr) {
+        console.error('>>> Webhook fulfillment error:', fulfillErr.message);
+      }
+    }
+  }
+
+  return res.status(200).json({ received: true });
+};
+
+// ─── POST /api/marketplace/purchase/:id (free templates only) ────────────────
 export const purchaseTemplate = async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id);
+    if (!template || !template.isActive) {
+      return res.status(404).json({ success: false, message: 'Template not found.' });
+    }
+
+    if (template.price > 0) {
+      return res.status(400).json({ success: false, message: 'This is a paid template. Use the Stripe checkout flow.' });
+    }
+
+    const buyer = await User.findById(req.user._id);
+    const alreadyOwns = buyer.purchasedTemplates.some(
+      p => p.templateId?.toString() === template._id.toString()
+    );
+    if (alreadyOwns) {
+      return res.status(200).json({ success: true, message: 'Already in your library.' });
+    }
+
+    buyer.purchasedTemplates.push({ templateId: template._id, purchasedAt: new Date() });
+    if (!buyer.ownedTemplates.includes(template._id)) {
+      buyer.ownedTemplates.push(template._id);
+    }
+    await buyer.save();
+    await Template.findByIdAndUpdate(template._id, { $inc: { downloads: 1 } });
+
+    return res.status(200).json({ success: true, message: 'Template added to your library!' });
+  } catch (err) {
+    console.error('>>> Purchase template error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to process purchase.' });
+  }
+};
+
+// ─── DELETE /api/marketplace/unpublish/:id ────────────────────────────────────
+export const unpublishTemplate = async (req, res) => {
   try {
     const template = await Template.findById(req.params.id);
     if (!template) return res.status(404).json({ success: false, message: 'Template not found.' });
 
-    const user = await User.findById(req.user._id).select('ownedTemplates');
-    const alreadyOwned = user.ownedTemplates.some(id => id.toString() === template._id.toString());
-
-    if (alreadyOwned) {
-      return res.status(200).json({
-        success: true,
-        alreadyOwned: true,
-        message: `You already own "${template.title}". It is in your library.`,
-        template
-      });
+    if (template.sellerId?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You can only unpublish your own templates.' });
     }
 
-    // Record ownership and count the sale only on a genuine first purchase.
-    user.ownedTemplates.push(template._id);
-    await user.save();
-    template.sales = (template.sales || 0) + 1;
+    template.isActive = false;
     await template.save();
 
-    return res.status(200).json({
-      success: true,
-      message: `Successfully purchased "${template.title}". It has been added to your library.`,
-      template
-    });
+    // Unmark source design's isPublic flag if it exists
+    if (template.designId) {
+      await Project.findOneAndUpdate(
+        { _id: template.designId, user: req.user._id },
+        { isPublic: false }
+      );
+    }
+
+    return res.status(200).json({ success: true, message: 'Template unpublished.' });
   } catch (err) {
-    console.error('>>> Template purchase error:', err);
-    return res.status(500).json({ success: false, message: 'Purchase failed. Please try again.' });
+    console.error('>>> Unpublish error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to unpublish template.' });
   }
 };
 
-// Get the templates the logged-in user owns (their library).
+// ─── GET /api/marketplace/library ────────────────────────────────────────────
 export const getMyLibrary = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate('ownedTemplates');
-    return res.status(200).json({ success: true, templates: user.ownedTemplates || [] });
+    const user = await User.findById(req.user._id)
+      .populate({ path: 'purchasedTemplates.templateId', select: 'title description imageUrl price lang category' });
+
+    const library = (user.purchasedTemplates || [])
+      .filter(p => p.templateId)
+      .map(p => ({ ...p.templateId.toObject(), purchasedAt: p.purchasedAt }));
+
+    return res.status(200).json({ success: true, templates: library });
   } catch (err) {
-    console.error('>>> Library fetch error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to fetch your library.' });
+    console.error('>>> Get library error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch library.' });
   }
 };

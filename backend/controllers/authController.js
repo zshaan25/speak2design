@@ -70,7 +70,7 @@ export const loginUserAccount = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    const matchedProfile = await User.findOne({ email: email.toLowerCase().trim() });
+    const matchedProfile = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
     if (!matchedProfile) {
       return res.status(401).json({ success: false, message: 'Invalid credentials entered.' });
     }
@@ -123,7 +123,7 @@ export const updateUserProfile = async (req, res) => {
   try {
     const { name, email, currentPassword, newPassword } = req.body;
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select('+password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
     // Update name
@@ -258,7 +258,7 @@ export const resetPassword = async (req, res) => {
 export const deactivateAccount = async (req, res) => {
   try {
     const { password } = req.body;
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select('+password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
     // Require password confirmation for local accounts (OAuth accounts have no password).
@@ -294,7 +294,7 @@ export const deleteAccount = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Type DELETE in the confirmation field to proceed.' });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select('+password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
     // Require password confirmation for local accounts.
@@ -340,6 +340,7 @@ export const upgradeToPremium = async (req, res) => {
       { tier: 'premium' },
       { new: true }
     ).select('-password');
+
 
     return res.status(200).json({
       success: true,

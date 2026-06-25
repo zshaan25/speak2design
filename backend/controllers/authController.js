@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import { sendPasswordResetEmail, isMailConfigured } from '../utils/mailer.js';
 
 const hashToken = (raw) => crypto.createHash('sha256').update(raw).digest('hex');
@@ -77,6 +78,13 @@ export const loginUserAccount = async (req, res) => {
     const signatureIsAuthentic = await bcrypt.compare(password, matchedProfile.password);
     if (!signatureIsAuthentic) {
       return res.status(401).json({ success: false, message: 'Invalid credentials entered.' });
+    }
+
+    // Auto-reactivate if the user previously deactivated their own account.
+    if (matchedProfile.isDeactivated) {
+      matchedProfile.isDeactivated = false;
+      matchedProfile.deactivatedAt = undefined;
+      await matchedProfile.save();
     }
 
     const securitySessionToken = buildTokenSignature(matchedProfile._id);
@@ -242,6 +250,85 @@ export const resetPassword = async (req, res) => {
   } catch (err) {
     console.error('>>> Reset password error:', err);
     return res.status(500).json({ success: false, message: 'Could not reset password.' });
+  }
+};
+
+// ─── Deactivate Account ───────────────────────────────────────────────────────
+// Sets isDeactivated = true. Reversible — logging back in clears the flag.
+export const deactivateAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    // Require password confirmation for local accounts (OAuth accounts have no password).
+    if (user.authProvider === 'local' || user.password) {
+      if (!password) {
+        return res.status(400).json({ success: false, message: 'Enter your current password to confirm deactivation.' });
+      }
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) return res.status(401).json({ success: false, message: 'Incorrect password.' });
+    }
+
+    user.isDeactivated = true;
+    user.deactivatedAt = new Date();
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Account deactivated. You have been signed out. Log back in at any time to reactivate.'
+    });
+  } catch (err) {
+    console.error('>>> Deactivate account error:', err);
+    return res.status(500).json({ success: false, message: 'Could not deactivate account.' });
+  }
+};
+
+// ─── Delete Account ────────────────────────────────────────────────────────────
+// Permanently removes the user and all their projects. Irreversible.
+export const deleteAccount = async (req, res) => {
+  try {
+    const { password, confirmation } = req.body;
+
+    if (confirmation !== 'DELETE') {
+      return res.status(400).json({ success: false, message: 'Type DELETE in the confirmation field to proceed.' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    // Require password confirmation for local accounts.
+    if (user.authProvider === 'local' || user.password) {
+      if (!password) {
+        return res.status(400).json({ success: false, message: 'Enter your current password to confirm deletion.' });
+      }
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) return res.status(401).json({ success: false, message: 'Incorrect password.' });
+    }
+
+    // Cascade delete: pages → projects → user (order matters for referential integrity).
+    const Project = (await import('../models/Project.js')).default;
+    const Page    = (await import('../models/Page.js')).default;
+
+    // Collect project IDs so we can delete their pages in one query.
+    const userProjects = await Project.find({ user: user._id }).select('_id');
+    const projectIds   = userProjects.map(p => p._id);
+
+    if (projectIds.length > 0) {
+      await Page.deleteMany({ project: { $in: projectIds } });
+    }
+    await Project.deleteMany({ user: user._id });
+
+    // Remove user document.
+    await User.findByIdAndDelete(user._id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Account and all associated data permanently deleted.'
+    });
+  } catch (err) {
+    console.error('>>> Delete account error:', err);
+    return res.status(500).json({ success: false, message: 'Could not delete account.' });
   }
 };
 

@@ -22,6 +22,15 @@ export const requireAuthentication = async (req, res, next) => {
       });
     }
 
+    // Block deactivated accounts from every protected route.
+    if (userProfile.isDeactivated) {
+      return res.status(403).json({
+        success: false,
+        accountDeactivated: true,
+        message: 'Your account has been deactivated. Log in again to reactivate it, or contact support.'
+      });
+    }
+
     // Attach active account contexts onto request references
     req.user = userProfile;
     next();

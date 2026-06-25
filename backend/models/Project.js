@@ -38,6 +38,15 @@ const projectSchema = new mongoose.Schema({
   historyPointer: {
     type: Number,
     default: -1
+  },
+  isPublic: {
+    type: Boolean,
+    default: false
+  },
+  shareToken: {
+    type: String,
+    default: null,
+    index: { sparse: true }
   }
 }, { timestamps: true });
 

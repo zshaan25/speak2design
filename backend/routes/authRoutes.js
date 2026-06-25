@@ -6,7 +6,9 @@ import {
   updateUserProfile,
   upgradeToPremium,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  deactivateAccount,
+  deleteAccount
 } from '../controllers/authController.js';
 import { oauthRedirect, oauthCallback } from '../controllers/oauthController.js';
 import { requireAuthentication } from '../middleware/auth.js';
@@ -24,5 +26,7 @@ router.get('/oauth/:provider/callback', oauthCallback);
 router.get('/profile', requireAuthentication, getUserContextData);
 router.put('/profile', requireAuthentication, updateUserProfile);
 router.post('/upgrade', requireAuthentication, upgradeToPremium);
+router.put('/deactivate', requireAuthentication, deactivateAccount);
+router.delete('/account', requireAuthentication, deleteAccount);
 
 export default router;

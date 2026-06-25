@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  User, Bell, Shield, Palette, Languages, CreditCard,
+  User, Bell, Shield, Palette, CreditCard,
   ChevronRight, ArrowLeft, X, Save, Loader2, Crown,
-  Check, Eye, EyeOff, Globe
+  Check, Eye, EyeOff, Globe, AlertTriangle, Trash2, PauseCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -11,8 +11,9 @@ const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:500
 
 interface SettingsProps {
   onBack: () => void;
-  user: { name: string; email: string; avatar: string; tier?: string; id?: string };
+  user: { name: string; email: string; avatar: string; tier?: string; id?: string; authProvider?: string };
   onUserUpdate?: (updatedUser: any) => void;
+  onSignOut?: () => void;
 }
 
 // ─── Profile Edit Modal ───────────────────────────────────────────────────────
@@ -160,11 +161,264 @@ const LanguageModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+// ─── Deactivate Modal ─────────────────────────────────────────────────────────
+const DeactivateModal: React.FC<{
+  user: any;
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ user, onClose, onSuccess }) => {
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const isOAuth = user.authProvider === 'google' || user.authProvider === 'github';
+
+  const handleDeactivate = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/auth/deactivate`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: isOAuth ? undefined : password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Account deactivated. You have been signed out.');
+        setTimeout(onSuccess, 800);
+      } else {
+        toast.error(data.message || 'Deactivation failed.');
+      }
+    } catch {
+      toast.error('Connection error.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b bg-amber-50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+              <PauseCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Deactivate Account</h3>
+              <p className="text-xs text-gray-500">Temporarily disable your account</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-amber-100 rounded-xl transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {/* Info box */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <h4 className="font-bold text-amber-800 text-sm mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" /> What happens when you deactivate?
+            </h4>
+            <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
+              <li>You will be immediately signed out</li>
+              <li>Your profile and projects are hidden but <strong>not deleted</strong></li>
+              <li>You can reactivate any time by logging back in</li>
+            </ul>
+          </div>
+
+          {/* Password confirmation (only for local accounts) */}
+          {!isOAuth && (
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+                Confirm your password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                  className="w-full px-4 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                />
+                <button type="button" onClick={() => setShowPassword(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isOAuth && (
+            <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-4">
+              You signed in with <strong className="capitalize">{user.authProvider}</strong>. No password is required — just confirm below to deactivate.
+            </p>
+          )}
+        </div>
+
+        <div className="px-6 pb-6 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleDeactivate}
+            disabled={loading || (!isOAuth && !password.trim())}
+            className="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
+            Deactivate Account
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// ─── Delete Modal ─────────────────────────────────────────────────────────────
+const DeleteModal: React.FC<{
+  user: any;
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ user, onClose, onSuccess }) => {
+  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const isOAuth = user.authProvider === 'google' || user.authProvider === 'github';
+
+  const canSubmit = confirmation === 'DELETE' && (isOAuth || password.trim());
+
+  const handleDelete = async () => {
+    if (!canSubmit) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/auth/account`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: isOAuth ? undefined : password, confirmation })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Your account has been permanently deleted.');
+        setTimeout(onSuccess, 800);
+      } else {
+        toast.error(data.message || 'Deletion failed.');
+      }
+    } catch {
+      toast.error('Connection error.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b bg-red-50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+              <Trash2 className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Delete Account</h3>
+              <p className="text-xs text-gray-500">This action is permanent and cannot be undone</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-red-100 rounded-xl transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {/* Warning box */}
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <h4 className="font-bold text-red-800 text-sm mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" /> You will permanently lose:
+            </h4>
+            <ul className="text-xs text-red-700 space-y-1 list-disc list-inside">
+              <li>Your account and profile ({user.email})</li>
+              <li>All your saved projects and components</li>
+              <li>Any purchased marketplace templates</li>
+              <li>This action <strong>cannot be reversed</strong></li>
+            </ul>
+          </div>
+
+          {/* Password (local accounts only) */}
+          {!isOAuth && (
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+                Current Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                  className="w-full px-4 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-400 text-sm"
+                />
+                <button type="button" onClick={() => setShowPassword(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Type DELETE confirmation */}
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+              Type <span className="text-red-600 font-black">DELETE</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={confirmation}
+              onChange={e => setConfirmation(e.target.value)}
+              placeholder="DELETE"
+              className={`w-full px-4 py-3 bg-gray-50 border rounded-xl outline-none text-sm font-mono tracking-wider transition-colors ${
+                confirmation === 'DELETE'
+                  ? 'border-red-400 focus:ring-2 focus:ring-red-400'
+                  : 'border-gray-200 focus:ring-2 focus:ring-gray-300'
+              }`}
+            />
+          </div>
+        </div>
+
+        <div className="px-6 pb-6 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={!canSubmit || loading}
+            className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Permanently Delete
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 // ─── Settings Screen ──────────────────────────────────────────────────────────
-export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUpdate }) => {
+export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUpdate, onSignOut }) => {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(user);
   const [isUpgrading, setIsUpgrading] = useState(false);
+
+  // Called after deactivate or delete — clear token + redirect to login
+  const handleAccountRemoved = () => {
+    localStorage.removeItem('speak2design_token');
+    localStorage.removeItem('speak2design_user');
+    setActiveModal(null);
+    if (onSignOut) onSignOut();
+  };
 
   const handleUpgrade = async () => {
     if (currentUser.tier === 'premium') {
@@ -226,6 +480,20 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
         )}
         {activeModal === 'language' && (
           <LanguageModal onClose={() => setActiveModal(null)} />
+        )}
+        {activeModal === 'deactivate' && (
+          <DeactivateModal
+            user={currentUser}
+            onClose={() => setActiveModal(null)}
+            onSuccess={handleAccountRemoved}
+          />
+        )}
+        {activeModal === 'delete' && (
+          <DeleteModal
+            user={currentUser}
+            onClose={() => setActiveModal(null)}
+            onSuccess={handleAccountRemoved}
+          />
         )}
       </AnimatePresence>
 
@@ -307,18 +575,60 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
           </div>
         </div>
 
-        <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
+        {/* Danger Zone */}
+        <div className="mx-6 mb-6 border border-red-200 rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 bg-red-50 border-b border-red-200 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <h3 className="font-bold text-red-700 text-sm uppercase tracking-widest">Danger Zone</h3>
+          </div>
+          <div className="divide-y divide-red-100">
+            {/* Deactivate */}
+            <div className="px-6 py-4 flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <PauseCircle className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">Deactivate Account</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Temporarily disable your account. All your data is preserved and you can reactivate by logging back in.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveModal('deactivate')}
+                className="flex-shrink-0 px-4 py-2 border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl font-bold text-xs transition-colors"
+              >
+                Deactivate
+              </button>
+            </div>
+
+            {/* Delete */}
+            <div className="px-6 py-4 flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Trash2 className="w-4 h-4 text-red-600" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">Delete Account</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Permanently delete your account and all data including projects and purchased templates. This cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveModal('delete')}
+                className="flex-shrink-0 px-4 py-2 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 rounded-xl font-bold text-xs transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-8 pb-8 flex items-center justify-between">
           <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Speak2Design v2.0.0</p>
-          <button
-            onClick={() => {
-              if (confirm('Deactivate account? This action cannot be undone.')) {
-                toast.error('Account deactivation requires contacting support.');
-              }
-            }}
-            className="text-red-500 font-bold text-sm hover:underline"
-          >
-            Deactivate Account
-          </button>
+          <p className="text-xs text-gray-400">F25-106 · University of Lahore</p>
         </div>
       </div>
     </div>

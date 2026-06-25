@@ -1,12 +1,18 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
+import { toFile } from 'groq-sdk/uploads';
 import DOMPurify from 'isomorphic-dompurify';
 import { randomUUID } from 'crypto';
 import User from '../models/User.js';
 
 const FREE_TIER_COMMAND_LIMIT = 10;
 const ALLOWED_TYPES = ['navbar', 'hero', 'features', 'cards', 'form', 'footer', 'cta', 'pricing', 'testimonials', 'gallery'];
-
 const USAGE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+// ─── Groq client (lazy — throws early if key missing) ────────────────────────
+const getGroq = () => {
+  if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not set.');
+  return new Groq({ apiKey: process.env.GROQ_API_KEY });
+};
 
 // ─── Load user, rolling-reset free-tier counter if the window has elapsed ─────
 const loadUserWithUsageWindow = async (userId) => {
@@ -20,40 +26,53 @@ const loadUserWithUsageWindow = async (userId) => {
   return user;
 };
 
-// ─── Gemini client ────────────────────────────────────────────────────────────
-const getGeminiModel = () => {
-  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set.');
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-};
-
-// ─── Audio transcription via Gemini ──────────────────────────────────────────
-const transcribeAudioWithGemini = async (audioBuffer, targetLanguage, mimeType = 'audio/webm') => {
+// ─── Audio transcription via Groq Whisper ────────────────────────────────────
+const transcribeAudioWithGroq = async (audioBuffer, targetLanguage, mimeType = 'audio/webm') => {
   try {
-    const model = getGeminiModel();
-    const base64Audio = audioBuffer.toString('base64');
-    // Gemini accepts the base container type; strip any codec suffix (e.g. "audio/webm;codecs=opus").
+    const groq = getGroq();
+
+    // Determine extension from MIME type for filename hint
+    const mimeToExt = {
+      'audio/webm': 'webm',
+      'audio/ogg': 'ogg',
+      'audio/mp4': 'mp4',
+      'audio/mpeg': 'mp3',
+      'audio/wav': 'wav',
+      'audio/flac': 'flac',
+    };
     const safeMime = (mimeType || 'audio/webm').split(';')[0];
-    const langHint = targetLanguage === 'Urdu'
-      ? 'The speaker is speaking in Urdu. Transcribe in Urdu script.'
-      : 'The speaker is speaking in English. Transcribe exactly as spoken.';
+    const ext = mimeToExt[safeMime] || 'webm';
 
-    const result = await model.generateContent([
-      { inlineData: { mimeType: safeMime, data: base64Audio } },
-      `${langHint} Return ONLY the transcription text, no labels, no explanations.`
-    ]);
+    // Groq Whisper expects a File/Blob — convert Buffer using the SDK helper
+    const audioFile = await toFile(audioBuffer, `audio.${ext}`, { type: safeMime });
 
-    const text = result.response.text().trim();
-    if (!text) throw new Error('Empty transcription returned from Gemini.');
+    const transcriptionOptions = {
+      file: audioFile,
+      model: 'whisper-large-v3',
+      response_format: 'text',
+    };
+
+    // Pass language hint to Whisper for better accuracy
+    if (targetLanguage === 'Urdu') {
+      transcriptionOptions.language = 'ur';
+    } else {
+      transcriptionOptions.language = 'en';
+    }
+
+    const result = await groq.audio.transcriptions.create(transcriptionOptions);
+
+    // With response_format: 'text', result is a plain string
+    const text = (typeof result === 'string' ? result : result?.text || '').trim();
+    if (!text) throw new Error('Empty transcription returned from Whisper.');
     return text;
   } catch (err) {
-    console.error('>>> Gemini transcription failed:', err.message);
+    console.error('>>> Groq Whisper transcription failed:', err.message);
     throw err;
   }
 };
 
-// ─── UI generation via Gemini ─────────────────────────────────────────────────
-const generateUIWithGemini = async (textCommand, existingCanvasState) => {
+// ─── UI generation via Groq LLaMA ────────────────────────────────────────────
+const generateUIWithGroq = async (textCommand, existingCanvasState) => {
   const existingTypes = existingCanvasState.map(c => c.type?.toLowerCase()).join(', ') || 'none';
 
   const prompt = `
@@ -117,18 +136,19 @@ Return ONLY the JSON — no other text.
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const model = getGeminiModel();
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: attempt === 1 ? 0.2 : 0.0
-        }
+      const groq = getGroq();
+
+      const completion = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
+        temperature: attempt === 1 ? 0.2 : 0.0,
+        max_tokens: 8192,
       });
 
-      let responseText = result.response.text().trim();
+      let responseText = completion.choices[0]?.message?.content?.trim() || '';
 
-      // Strip markdown fences if model ignores responseMimeType
+      // Strip markdown fences if present
       responseText = responseText
         .replace(/^```json\s*/i, '')
         .replace(/^```\s*/i, '')
@@ -139,13 +159,15 @@ Return ONLY the JSON — no other text.
 
       if (parsed.clarification_needed) return parsed;
       if (Array.isArray(parsed)) return parsed;
+      // LLaMA sometimes wraps the array in a key
       if (Array.isArray(parsed.canvas)) return parsed.canvas;
       if (Array.isArray(parsed.components)) return parsed.components;
+      if (Array.isArray(parsed.result)) return parsed.result;
       return parsed;
 
     } catch (err) {
       lastError = err;
-      console.error(`>>> Gemini UI generation attempt ${attempt} failed:`, err.message);
+      console.error(`>>> Groq UI generation attempt ${attempt} failed:`, err.message);
     }
   }
 
@@ -155,8 +177,6 @@ Return ONLY the JSON — no other text.
 // ─── XSS sanitization (DOMPurify — strips scripts, event handlers, js: URLs) ──
 export const sanitizeHTMLContent = (html) => {
   if (!html || typeof html !== 'string') return '';
-  // DOMPurify already strips <script>, on* handlers and javascript: URLs by default.
-  // We additionally forbid embedding/navigation tags that have no place in a UI mockup.
   return DOMPurify.sanitize(html, {
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'link', 'meta', 'base'],
     ALLOW_DATA_ATTR: false
@@ -182,7 +202,7 @@ export const sanitizeCanvas = (canvas) => {
     .filter(Boolean);
 };
 
-// ─── FR_06: detect when a command overrode an existing component of same type ─
+// ─── Detect when a command overrode an existing component of same type ────────
 const detectOverrideNotice = (before, after) => {
   if (!Array.isArray(before) || !Array.isArray(after)) return null;
   const beforeByType = new Map(before.map(c => [String(c.type || '').toLowerCase(), c]));
@@ -202,8 +222,9 @@ const detectOverrideNotice = (before, after) => {
 const friendlyError = (err) => {
   const msg = err.message || '';
   if (msg.includes('API key') || msg.includes('API_KEY')) return 'AI service configuration error. Contact support.';
-  if (msg.includes('quota') || msg.includes('429'))       return 'AI service quota exceeded. Try again later.';
-  if (msg.includes('JSON') || msg.includes('parse'))      return 'AI returned unexpected output. Rephrase your command.';
+  if (msg.includes('quota') || msg.includes('429') || msg.includes('rate'))
+    return 'AI service rate limit reached. Please wait a moment and try again.';
+  if (msg.includes('JSON') || msg.includes('parse')) return 'AI returned unexpected output. Rephrase your command.';
   return 'Failed to process command. Please try again.';
 };
 
@@ -229,30 +250,30 @@ export const transcribeAudioAndGenerateUI = async (req, res) => {
     const requestedLanguage = req.body.language || 'English';
     const baseCanvasState = JSON.parse(req.body.currentCanvas || '[]');
 
-    // Step 1: Transcribe audio
-    const transcription = await transcribeAudioWithGemini(req.file.buffer, requestedLanguage, req.file.mimetype);
+    // Step 1: Transcribe audio via Groq Whisper
+    const transcription = await transcribeAudioWithGroq(req.file.buffer, requestedLanguage, req.file.mimetype);
     if (!transcription?.trim()) {
       return res.status(422).json({ success: false, message: 'No speech detected. Please speak clearly and try again.' });
     }
 
-    // Step 2: Generate UI
-    const geminiResult = await generateUIWithGemini(transcription, baseCanvasState);
+    // Step 2: Generate UI via Groq LLaMA
+    const groqResult = await generateUIWithGroq(transcription, baseCanvasState);
 
     // Clarification response
-    if (geminiResult?.clarification_needed) {
+    if (groqResult?.clarification_needed) {
       return res.status(200).json({
         success: true,
         clarification_needed: true,
-        message: geminiResult.message,
+        message: groqResult.message,
         transcription,
-        updatedCanvas: sanitizeCanvas(Array.isArray(geminiResult.canvas) ? geminiResult.canvas : baseCanvasState),
-        ttsConfirmation: geminiResult.message,
+        updatedCanvas: sanitizeCanvas(Array.isArray(groqResult.canvas) ? groqResult.canvas : baseCanvasState),
+        ttsConfirmation: groqResult.message,
         usageCount: freshUser.usageCount,
         tier: freshUser.tier
       });
     }
 
-    const safeCanvas = sanitizeCanvas(Array.isArray(geminiResult) ? geminiResult : baseCanvasState);
+    const safeCanvas = sanitizeCanvas(Array.isArray(groqResult) ? groqResult : baseCanvasState);
     const overrideNotice = detectOverrideNotice(baseCanvasState, safeCanvas);
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -302,21 +323,21 @@ export const processTextIntent = async (req, res) => {
     }
 
     const baseCanvasState = Array.isArray(currentCanvas) ? currentCanvas : [];
-    const geminiResult = await generateUIWithGemini(command, baseCanvasState);
+    const groqResult = await generateUIWithGroq(command, baseCanvasState);
 
-    if (geminiResult?.clarification_needed) {
+    if (groqResult?.clarification_needed) {
       return res.status(200).json({
         success: true,
         clarification_needed: true,
-        message: geminiResult.message,
-        updatedCanvas: sanitizeCanvas(Array.isArray(geminiResult.canvas) ? geminiResult.canvas : baseCanvasState),
-        ttsConfirmation: geminiResult.message,
+        message: groqResult.message,
+        updatedCanvas: sanitizeCanvas(Array.isArray(groqResult.canvas) ? groqResult.canvas : baseCanvasState),
+        ttsConfirmation: groqResult.message,
         usageCount: freshUser.usageCount,
         tier: freshUser.tier
       });
     }
 
-    const safeCanvas = sanitizeCanvas(Array.isArray(geminiResult) ? geminiResult : baseCanvasState);
+    const safeCanvas = sanitizeCanvas(Array.isArray(groqResult) ? groqResult : baseCanvasState);
     const overrideNotice = detectOverrideNotice(baseCanvasState, safeCanvas);
 
     const updatedUser = await User.findByIdAndUpdate(

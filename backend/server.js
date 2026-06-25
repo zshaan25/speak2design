@@ -1,15 +1,19 @@
+// ── MUST be the very first import so process.env is populated before ANY other
+// module (oauthController, voiceController, etc.) reads it at load time.
+// In ESM all imports are hoisted, but they are evaluated left-to-right, so
+// listing 'dotenv/config' first guarantees it runs before the route modules.
+import 'dotenv/config';
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import compression from 'compression';
-import dotenv from 'dotenv';
 
 import authRoutes from './routes/authRoutes.js';
 import voiceRoutes from './routes/voiceRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import marketplaceRoutes from './routes/marketplaceRoutes.js';
-
-dotenv.config();
+import pageRoutes from './routes/pageRoutes.js';
 const app = express();
 
 // ─── CORS — allow localhost dev + production Vercel URL ───────────────────────
@@ -52,6 +56,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
+// Page routes are mounted at /api so the full path is /api/projects/:id/pages/…
+app.use('/api', pageRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {

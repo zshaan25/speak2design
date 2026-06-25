@@ -3,10 +3,17 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Mic, ChevronLeft, Undo2, Redo2, Code2, Settings2, X, Save,
   Volume2, VolumeX, GripVertical, Loader2, Crown, Zap, Download,
-  Copy, Check, AlertCircle, RefreshCw, ArrowUp, ArrowDown
+  Copy, Check, AlertCircle, RefreshCw, ArrowUp, ArrowDown, LayoutTemplate, Eye,
+  ZoomIn, ZoomOut, Maximize2, Keyboard, Palette, Search, Sparkles, CloudOff,
+  Share2, BookMarked, History, Type, Link, Globe, Lock, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DOMPurify from 'dompurify';
+import { PageManager, type PageDoc } from './PageManager';
+import { TemplateLibrary } from './TemplateLibrary';
+import type { Template } from '../data/templates';
+import { WebsitePreview } from './WebsitePreview';
+import { downloadWebsiteZip } from '../utils/zipExport';
 
 // ─── API Base URL ─────────────────────────────────────────────────────────────
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:5000';
@@ -38,6 +45,199 @@ const sanitizeHTML = (html: string): string => {
   });
 };
 
+// ─── Share Modal ──────────────────────────────────────────────────────────────
+const ShareModal: React.FC<{
+  projectId: string;
+  projectTitle: string;
+  onClose: () => void;
+}> = ({ projectId, projectTitle, onClose }) => {
+  const [isPublic, setIsPublic] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [initialised, setInitialised] = useState(false);
+
+  // Fetch current share state on mount
+  useEffect(() => {
+    const token = localStorage.getItem('speak2design_token');
+    fetch(`${API_BASE}/api/projects/${projectId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(r => r.json()).then(d => {
+      if (d.success) {
+        setIsPublic(d.project.isPublic || false);
+        setShareToken(d.project.shareToken || null);
+      }
+    }).catch(() => {}).finally(() => setInitialised(true));
+  }, [projectId]);
+
+  const toggle = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isPublic: !isPublic })
+      });
+      const d = await res.json();
+      if (d.success) {
+        setIsPublic(d.isPublic);
+        setShareToken(d.shareToken);
+        toast.success(d.isPublic ? 'Project is now public!' : 'Project set to private.');
+      }
+    } catch { toast.error('Share toggle failed.'); }
+    finally { setLoading(false); }
+  };
+
+  const regenerateLink = async () => {
+    if (!window.confirm('This will invalidate the current share link. Anyone with the old URL will lose access. Continue?')) return;
+    setRegenerating(true);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/share/regenerate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const d = await res.json();
+      if (d.success) {
+        setIsPublic(d.isPublic);
+        setShareToken(d.shareToken);
+        setCopied(false);
+        toast.success('Share link regenerated — old link is now invalid.');
+      } else {
+        toast.error('Failed to regenerate link.');
+      }
+    } catch { toast.error('Failed to regenerate link.'); }
+    finally { setRegenerating(false); }
+  };
+
+  const shareURL = shareToken
+    ? `${window.location.origin}/view/${shareToken}`
+    : null;
+
+  const handleCopy = async () => {
+    if (!shareURL) return;
+    await navigator.clipboard.writeText(shareURL);
+    setCopied(true);
+    toast.success('Link copied to clipboard!');
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center">
+              <Share2 className="w-4 h-4 text-orange-600" />
+            </div>
+            <div>
+              <h2 className="font-bold text-gray-900 text-base">Share Project</h2>
+              <p className="text-xs text-gray-500">{projectTitle}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          {!initialised ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <>
+              {/* Toggle row */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isPublic ? 'bg-green-100' : 'bg-gray-200'}`}>
+                    {isPublic ? <Globe className="w-4 h-4 text-green-600" /> : <Lock className="w-4 h-4 text-gray-500" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-gray-900">{isPublic ? 'Public' : 'Private'}</p>
+                    <p className="text-[11px] text-gray-500">
+                      {isPublic ? 'Anyone with the link can view' : 'Only you can access this project'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={toggle}
+                  disabled={loading}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${
+                    isPublic ? 'bg-green-500' : 'bg-gray-300'
+                  } disabled:opacity-60`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                    isPublic ? 'translate-x-5' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Share URL */}
+              {isPublic && shareURL && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Share Link</p>
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+                      <Link className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      <span className="text-xs text-gray-600 truncate font-mono">{shareURL}</span>
+                    </div>
+                    <button
+                      onClick={handleCopy}
+                      className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex-shrink-0 ${
+                        copied ? 'bg-green-500 text-white' : 'bg-gray-900 text-white hover:bg-gray-700'
+                      }`}
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-400 leading-relaxed">
+                    Recipients see a read-only view of the current published state.
+                  </p>
+                  <button
+                    onClick={regenerateLink}
+                    disabled={regenerating}
+                    className="flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50 mt-1"
+                  >
+                    {regenerating
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <RefreshCw className="w-3 h-3" />}
+                    {regenerating ? 'Regenerating…' : 'Regenerate link (invalidates old URL)'}
+                  </button>
+                </div>
+              )}
+
+              {!isPublic && (
+                <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl">
+                  <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    Toggle the switch above to generate a shareable link. The project will be viewable by anyone who has the URL.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="px-6 pb-5">
+          <button onClick={onClose}
+            className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-colors">
+            Done
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 // ─── Export Code Modal ────────────────────────────────────────────────────────
 const ExportModal: React.FC<{
   canvas: CanvasComponent[];
@@ -46,8 +246,15 @@ const ExportModal: React.FC<{
   userTier: 'free' | 'premium';
   onUpgrade: () => void;
   isUpgrading: boolean;
-}> = ({ canvas, projectTitle, onClose, userTier, onUpgrade, isUpgrading }) => {
+  /** All pages (for ZIP export) */
+  allPages: PageDoc[];
+  /** In-memory canvas cache — includes unsaved edits */
+  canvasCache: Record<string, CanvasComponent[]>;
+  /** Active canvas font family */
+  canvasFont?: string;
+}> = ({ canvas, projectTitle, onClose, userTier, onUpgrade, isUpgrading, allPages, canvasCache, canvasFont = 'Inter' }) => {
   const [copied, setCopied] = useState(false);
+  const [isZipping, setIsZipping] = useState(false);
   const isPremium = userTier === 'premium';
 
   // Mirror the canvas FR_05 layout (width / align / spacing) into the exported HTML
@@ -66,15 +273,21 @@ const ExportModal: React.FC<{
     return parts.join(';');
   };
 
+  // Build Google Fonts link for the active font
+  const gfontsLink = canvasFont !== 'Inter'
+    ? `\n  <link rel="preconnect" href="https://fonts.googleapis.com" />\n  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />\n  <link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(canvasFont).replace(/%20/g, '+')}:wght@400;600;700&display=swap" rel="stylesheet" />`
+    : '';
+  const fontBodyStyle = canvasFont !== 'Inter' ? ` style="font-family:'${canvasFont}',sans-serif"` : '';
+
   const fullHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${projectTitle}</title>
-  <script src="https://cdn.tailwindcss.com"><\/script>
+  <script src="https://cdn.tailwindcss.com"><\/script>${gfontsLink}
 </head>
-<body>
+<body${fontBodyStyle}>
 ${canvas.map(c => `  <!-- ${c.name} -->\n  <div style="${exportWrapperStyle(c.styles)}">\n    ${c.htmlContent.trim()}\n  </div>`).join('\n\n')}
 </body>
 </html>`;
@@ -115,6 +328,24 @@ body {
     a.click();
     URL.revokeObjectURL(url);
     toast.success('CSS file downloaded!');
+  };
+
+  const handleDownloadZip = async () => {
+    if (allPages.length === 0) { toast.error('No pages to export.'); return; }
+    setIsZipping(true);
+    try {
+      // Merge in-memory cache so unsaved edits are included
+      const resolvedPages = allPages.map(p => ({
+        ...p,
+        canvasState: (canvasCache[p._id] ?? p.canvasState ?? []) as CanvasComponent[],
+      }));
+      await downloadWebsiteZip(resolvedPages, projectTitle, canvasFont);
+      toast.success('Website ZIP downloaded!');
+    } catch (err: any) {
+      toast.error(err?.message ?? 'ZIP export failed.');
+    } finally {
+      setIsZipping(false);
+    }
   };
 
   return (
@@ -170,6 +401,16 @@ body {
               >
                 <Download className="w-4 h-4" /> Download CSS
               </button>
+              <button
+                onClick={handleDownloadZip}
+                disabled={isZipping}
+                className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-60"
+              >
+                {isZipping
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Zipping…</>
+                  : <><Download className="w-4 h-4" /> Download ZIP ({allPages.length} page{allPages.length !== 1 ? 's' : ''})</>
+                }
+              </button>
               <div className="ml-auto flex items-center gap-1 text-xs text-gray-400">
                 <Check className="w-3.5 h-3.5 text-green-500" />
                 Tailwind CDN included
@@ -179,7 +420,7 @@ body {
             <div className="flex items-center gap-3 w-full">
               <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
                 <Crown className="w-3.5 h-3.5 text-amber-500" />
-                File downloads (HTML/CSS) are a Premium feature. Free plan can copy code.
+                File downloads (HTML/CSS/ZIP) are a Premium feature. Free plan can copy code.
               </div>
               <button
                 onClick={onUpgrade}
@@ -209,6 +450,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
   const [usageCount, setUsageCount] = useState(0);
   const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [clarificationMessage, setClarificationMessage] = useState<string | null>(null);
 
@@ -218,6 +461,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
+
+  // ── Multi-page state ─────────────────────────────────────────────────────────
+  const [pages, setPages] = useState<PageDoc[]>([]);
+  const [activePageId, setActivePageId] = useState<string | null>(null);
+  // In-memory canvas cache: saves each page's canvas so switching is instant
+  const pageCanvasCache = useRef<Record<string, CanvasComponent[]>>({});
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -271,6 +520,140 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
     loadProject();
   }, [projectId]);
 
+  // ── Load pages (runs after project load) ────────────────────────────────────
+  useEffect(() => {
+    if (!projectId) return;
+    const loadPages = async () => {
+      try {
+        const token = localStorage.getItem('speak2design_token');
+        const res = await fetch(`${API_BASE}/api/projects/${projectId}/pages`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.pages?.length > 0) {
+          setPages(data.pages);
+          const firstPage = data.pages[0];
+          // Seed cache from fetched data
+          data.pages.forEach((p: PageDoc) => {
+            pageCanvasCache.current[p._id] = p.canvasState || [];
+          });
+          // Activate first page — its canvas might already be set by project load
+          setActivePageId(firstPage._id);
+          // Only overwrite canvas if the page has its own content
+          if ((firstPage.canvasState?.length ?? 0) > 0) {
+            setCanvasState(firstPage.canvasState);
+            setHistoryStack([firstPage.canvasState]);
+            setHistoryPointer(0);
+          }
+        }
+      } catch (err) {
+        console.error('Pages load error:', err);
+      }
+    };
+    loadPages();
+  }, [projectId]);
+
+  // ── Switch active page ───────────────────────────────────────────────────────
+  const switchPage = useCallback((targetPageId: string) => {
+    if (targetPageId === activePageId) return;
+
+    // Save current canvas into the in-memory cache before switching
+    if (activePageId) {
+      pageCanvasCache.current[activePageId] = canvasState;
+      // Also sync into the pages array so the cache and pages stay aligned
+      setPages(prev => prev.map(p =>
+        p._id === activePageId ? { ...p, canvasState } : p
+      ));
+    }
+
+    // Load target page canvas from cache (already populated on mount)
+    const targetCanvas = pageCanvasCache.current[targetPageId] ?? [];
+    setActivePageId(targetPageId);
+    setCanvasState(targetCanvas);
+    setHistoryStack([targetCanvas]);
+    setHistoryPointer(0);
+    setSelectedComponentId(null);
+  }, [activePageId, canvasState]);
+
+  // ── Page CRUD helpers ─────────────────────────────────────────────────────────
+  const addPage = async () => {
+    if (!projectId) return;
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/pages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: `Page ${pages.length + 1}` })
+      });
+      const data = await res.json();
+      if (data.success) {
+        pageCanvasCache.current[data.page._id] = [];
+        setPages(prev => [...prev, data.page]);
+        switchPage(data.page._id);
+        toast.success(`"${data.page.name}" created.`);
+      }
+    } catch { toast.error('Failed to create page.'); }
+  };
+
+  const renamePage = async (pageId: string, name: string) => {
+    if (!projectId) return;
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/pages/${pageId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPages(prev => prev.map(p => p._id === pageId ? { ...p, name } : p));
+      }
+    } catch { toast.error('Rename failed.'); }
+  };
+
+  const duplicatePageAction = async (pageId: string) => {
+    if (!projectId) return;
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/pages/${pageId}/duplicate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        pageCanvasCache.current[data.page._id] = data.page.canvasState || [];
+        setPages(prev => [...prev, data.page]);
+        switchPage(data.page._id);
+        toast.success(`"${data.page.name}" duplicated.`);
+      }
+    } catch { toast.error('Duplicate failed.'); }
+  };
+
+  const deletePageAction = async (pageId: string) => {
+    if (!projectId) return;
+    if (pages.length <= 1) { toast.error('Cannot delete the last page.'); return; }
+    if (!confirm('Delete this page? This cannot be undone.')) return;
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/pages/${pageId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        delete pageCanvasCache.current[pageId];
+        const remaining = pages.filter(p => p._id !== pageId);
+        setPages(remaining);
+        if (activePageId === pageId && remaining.length > 0) {
+          switchPage(remaining[0]._id);
+        }
+        toast.success('Page deleted.');
+      } else {
+        toast.error(data.message || 'Delete failed.');
+      }
+    } catch { toast.error('Delete failed.'); }
+  };
+
   // ── TTS ──────────────────────────────────────────────────────────────────────
   const speakTTS = useCallback((text: string) => {
     if (!ttsEnabled || !window.speechSynthesis) return;
@@ -322,18 +705,35 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('speak2design_token');
-      const res = await fetch(`${API_BASE}/api/projects/${projectId}`, {
+
+      // 1. Save project metadata + legacy canvasState (backwards compat)
+      const projRes = await fetch(`${API_BASE}/api/projects/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ canvasState, title: projectTitle, language })
       });
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Project saved!');
-        speakTTS('Project saved successfully.');
-      } else {
-        toast.error('Save failed: ' + data.message);
+      const projData = await projRes.json();
+      if (!projData.success) {
+        toast.error('Save failed: ' + projData.message);
+        return;
       }
+
+      // 2. Save the active page's canvas to its own Page document
+      if (activePageId) {
+        await fetch(`${API_BASE}/api/projects/${projectId}/pages/${activePageId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ canvasState })
+        });
+        // Update cache and pages array to reflect saved state
+        pageCanvasCache.current[activePageId] = canvasState;
+        setPages(prev => prev.map(p =>
+          p._id === activePageId ? { ...p, canvasState } : p
+        ));
+      }
+
+      toast.success('Project saved!');
+      speakTTS('Project saved successfully.');
     } catch {
       toast.error('Could not reach server.');
     } finally {
@@ -366,7 +766,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
   };
 
   // ── Handle API response (shared between voice and text) ───────────────────
-  const handleAPIResponse = (data: any) => {
+  const handleAPIResponse = (data: any, logCtx?: { type: 'voice' | 'text'; command: string }) => {
     // Sync usage stats from authoritative server response
     if (typeof data.usageCount === 'number') setUsageCount(data.usageCount);
     if (data.tier) setUserTier(data.tier);
@@ -382,6 +782,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 
     if (data.updatedCanvas && Array.isArray(data.updatedCanvas)) {
       pushNewStateToHistory(data.updatedCanvas);
+      // Log to command history
+      if (logCtx) {
+        addCommandLog(logCtx.type, logCtx.command, data.updatedCanvas.length);
+      }
       // FR_06: notify when the latest command overrode an existing component.
       if (data.overrideNotice) {
         toast.warning(data.overrideNotice, { duration: 5000 });
@@ -427,11 +831,18 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       setTranscription('Listening… speak your layout command.');
       setClarificationMessage(null);
     } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
-        toast.error('Microphone access denied. Allow it in browser settings.');
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        toast.error('Microphone access denied. Click the 🔒 icon in your browser address bar and allow microphone access, then refresh.');
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        toast.error('No microphone detected. Plug in a mic or use the text command box below instead.', { duration: 6000 });
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        toast.error('Microphone is in use by another application. Close other apps using the mic and try again.');
+      } else if (err.name === 'OverconstrainedError') {
+        toast.error('Microphone does not meet requirements. Try a different audio input device.');
       } else {
-        toast.error('Could not start recording: ' + err.message);
+        toast.error('Could not access microphone: ' + (err.message || err.name));
       }
+      setIsListening(false);
     }
   };
 
@@ -481,7 +892,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       }
       if (res.status === 429) { toast.error(data.message || 'Too many requests. Wait a moment.'); return; }
       if (res.ok && data.success) {
-        handleAPIResponse(data);
+        handleAPIResponse(data, { type: 'voice', command: data.transcription || '(voice command)' });
       } else {
         toast.error(data.message || 'AI processing failed.');
         speakTTS('Sorry, I could not process that command. Please try again.');
@@ -520,7 +931,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       }
       if (res.status === 429) { toast.error(data.message || 'Too many requests. Wait a moment.'); return; }
       if (res.ok && data.success) {
-        handleAPIResponse(data);
+        handleAPIResponse(data, { type: 'text', command: textCommand });
         setTextCommand('');
       } else {
         toast.error(data.message || 'Command failed.');
@@ -541,6 +952,23 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
     speakTTS('Component removed from canvas.');
   };
 
+  // ── Duplicate component ───────────────────────────────────────────────────────
+  const duplicateComponent = (id: string) => {
+    const idx = canvasState.findIndex(c => c.id === id);
+    if (idx === -1) return;
+    const original = canvasState[idx];
+    const clone = {
+      ...original,
+      id: `${original.id}_copy_${Date.now()}`,
+      name: `${original.name} (copy)`,
+    };
+    const updated = [...canvasState];
+    updated.splice(idx + 1, 0, clone);
+    pushNewStateToHistory(updated);
+    setSelectedComponentId(clone.id);
+    toast.success(`"${original.name}" duplicated.`);
+  };
+
   // ── FR_05: Move component up / down in the canvas stack ─────────────────────
   const moveComponent = (id: string, direction: 'up' | 'down') => {
     const updated = [...canvasState];
@@ -551,6 +979,48 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];
     } else return; // already at edge — do nothing
     pushNewStateToHistory(updated);
+  };
+
+  // ── Template Library: insert sections / new page ─────────────────────────────
+  const handleInsertTemplateSections = (sections: Template['sections']) => {
+    const asComponents: CanvasComponent[] = sections.map(s => ({
+      id: s.id,
+      type: s.type,
+      name: s.name,
+      styles: s.styles as Record<string, string>,
+      htmlContent: s.htmlContent,
+    }));
+    pushNewStateToHistory([...canvasState, ...asComponents]);
+    toast.success(`${sections.length} section${sections.length > 1 ? 's' : ''} inserted!`);
+  };
+
+  const handleNewPageFromTemplate = async (name: string, sections: Template['sections']) => {
+    if (!projectId) { toast.error('Save your project first before adding pages.'); return; }
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/pages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (!data.success) { toast.error('Could not create page.'); return; }
+      const newPage: PageDoc = data.page;
+      const asComponents: CanvasComponent[] = sections.map(s => ({
+        id: s.id,
+        type: s.type,
+        name: s.name,
+        styles: s.styles as Record<string, string>,
+        htmlContent: s.htmlContent,
+      }));
+      // Pre-populate cache before switching so switchPage loads immediately
+      pageCanvasCache.current[newPage._id] = asComponents;
+      setPages(prev => [...prev, { ...newPage, canvasState: asComponents as any[] }]);
+      switchPage(newPage._id);
+      // Push sections into the new page's canvas history
+      pushNewStateToHistory(asComponents);
+      toast.success(`"${name}" page created with ${sections.length} section${sections.length > 1 ? 's' : ''}!`);
+    } catch { toast.error('Failed to create page from template.'); }
   };
 
   // ── Drag & drop reorder ──────────────────────────────────────────────────────
@@ -597,6 +1067,260 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 
   const activeComponent = canvasState.find(c => c.id === selectedComponentId);
 
+  // ── Inspector tabs ────────────────────────────────────────────────────────────
+  const [inspectorTab, setInspectorTab] = useState<'properties' | 'code'>('properties');
+  // Inline HTML editor — tracks the textarea value while editing
+  const [editingHTML, setEditingHTML] = useState<string>('');
+  const [editingName, setEditingName] = useState<string>('');
+  const [htmlDirty, setHtmlDirty] = useState(false);
+  const [nameDirty, setNameDirty] = useState(false);
+
+  // Sync editor state when selection changes
+  useEffect(() => {
+    if (activeComponent) {
+      setEditingHTML(activeComponent.htmlContent);
+      setEditingName(activeComponent.name);
+      setHtmlDirty(false);
+      setNameDirty(false);
+      setRegenPrompt(''); // clear regen prompt on selection change
+    }
+  }, [selectedComponentId, activeComponent?.htmlContent]);
+
+  const applyHTMLEdit = () => {
+    if (!activeComponent) return;
+    const updated = canvasState.map(c =>
+      c.id === activeComponent.id ? { ...c, htmlContent: editingHTML } : c
+    );
+    pushNewStateToHistory(updated);
+    setHtmlDirty(false);
+    toast.success('HTML updated on canvas.');
+  };
+
+  const applyNameEdit = () => {
+    if (!activeComponent || !editingName.trim()) return;
+    const updated = canvasState.map(c =>
+      c.id === activeComponent.id ? { ...c, name: editingName.trim() } : c
+    );
+    pushNewStateToHistory(updated);
+    setNameDirty(false);
+  };
+
+  // ── Canvas zoom ───────────────────────────────────────────────────────────────
+  const [canvasZoom, setCanvasZoom] = useState(1);
+  const ZOOM_STEPS = [0.5, 0.6, 0.75, 0.9, 1, 1.1, 1.25, 1.5];
+  const zoomIn  = () => setCanvasZoom(z => { const i = ZOOM_STEPS.indexOf(z); return ZOOM_STEPS[Math.min(i + 1, ZOOM_STEPS.length - 1)]; });
+  const zoomOut = () => setCanvasZoom(z => { const i = ZOOM_STEPS.indexOf(z); return ZOOM_STEPS[Math.max(i - 1, 0)]; });
+  const zoomReset = () => setCanvasZoom(1);
+
+  // Ctrl+Scroll to zoom
+  const canvasAreaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = canvasAreaRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) zoomIn();
+        else zoomOut();
+      }
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasZoom]);
+
+  // ── Auto-save ─────────────────────────────────────────────────────────────────
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Silent save — no toast, just API call
+  const silentSave = useCallback(async () => {
+    if (!projectId || canvasState.length === 0) return;
+    setAutoSaveStatus('saving');
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      await fetch(`${API_BASE}/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ canvasState, title: projectTitle, language })
+      });
+      if (activePageId) {
+        await fetch(`${API_BASE}/api/projects/${projectId}/pages/${activePageId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ canvasState })
+        });
+        pageCanvasCache.current[activePageId] = canvasState;
+      }
+      setAutoSaveStatus('saved');
+      setTimeout(() => setAutoSaveStatus('idle'), 3000);
+    } catch {
+      setAutoSaveStatus('error');
+      setTimeout(() => setAutoSaveStatus('idle'), 4000);
+    }
+  }, [projectId, canvasState, projectTitle, language, activePageId]);
+
+  useEffect(() => {
+    if (!projectId || historyPointer < 0) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(silentSave, 8000);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasState]);
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag);
+      // Escape — deselect
+      if (e.key === 'Escape') { setSelectedComponentId(null); return; }
+      // Ctrl/Cmd combos
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'z':
+            if (!e.shiftKey) { e.preventDefault(); handleUndoAction(); }
+            else { e.preventDefault(); handleRedoAction(); }
+            break;
+          case 'y': e.preventDefault(); handleRedoAction(); break;
+          case 's': e.preventDefault(); handleSaveProject(); break;
+          case 'd':
+            e.preventDefault();
+            if (selectedComponentId) duplicateComponent(selectedComponentId);
+            break;
+          case '=': case '+': e.preventDefault(); zoomIn(); break;
+          case '-': e.preventDefault(); zoomOut(); break;
+          case '0': e.preventDefault(); zoomReset(); break;
+        }
+      }
+      // Delete/Backspace — remove selected (not when focused in input)
+      if (!isInput && selectedComponentId && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault();
+        removeComponent(selectedComponentId);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedComponentId, historyPointer, historyStack.length, canvasZoom]);
+
+  // ── Color Theme ───────────────────────────────────────────────────────────────
+  type ColorTheme = 'default' | 'forest' | 'sunset' | 'galaxy' | 'noir';
+  const [showThemePicker, setShowThemePicker] = useState(false);
+
+  const THEMES: { id: ColorTheme; label: string; dot: string; swap: [string, string][] }[] = [
+    { id: 'default', label: 'Default',  dot: 'bg-blue-500',   swap: [] },
+    { id: 'forest',  label: 'Forest',   dot: 'bg-green-500',  swap: [['blue','green'],['indigo','emerald'],['cyan','teal'],['violet','lime']] },
+    { id: 'sunset',  label: 'Sunset',   dot: 'bg-orange-500', swap: [['blue','orange'],['indigo','rose'],['cyan','amber'],['violet','pink']] },
+    { id: 'galaxy',  label: 'Galaxy',   dot: 'bg-violet-500', swap: [['blue','violet'],['indigo','purple'],['cyan','fuchsia'],['green','teal']] },
+    { id: 'noir',    label: 'Noir',     dot: 'bg-slate-600',  swap: [['blue','slate'],['indigo','gray'],['cyan','zinc'],['violet','stone'],['green','gray']] },
+  ];
+
+  const applyColorTheme = (themeId: ColorTheme) => {
+    setShowThemePicker(false);
+    const theme = THEMES.find(t => t.id === themeId)!;
+    if (themeId === 'default') { toast.info('Default theme already applied.'); return; }
+    const updated = canvasState.map(comp => {
+      let html = comp.htmlContent;
+      for (const [from, to] of theme.swap) {
+        // Swap e.g. "blue" in class names: -blue- and standalone class segments
+        html = html.replace(new RegExp(`-${from}-`, 'g'), `-${to}-`);
+        html = html.replace(new RegExp(`\\b${from}\\b`, 'g'), to);
+      }
+      return { ...comp, htmlContent: html };
+    });
+    pushNewStateToHistory(updated);
+    toast.success(`"${theme.label}" theme applied. Press Ctrl+Z to undo.`);
+  };
+
+  // ── Layer Search ──────────────────────────────────────────────────────────────
+  const [layerSearch, setLayerSearch] = useState('');
+
+  // ── Phase 6: Share Modal ──────────────────────────────────────────────────────
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  // ── Phase 6: Command History Log ──────────────────────────────────────────────
+  type CommandEntry = { id: string; type: 'voice' | 'text'; command: string; timestamp: Date; count: number };
+  const [commandLog, setCommandLog] = useState<CommandEntry[]>([]);
+  const [showCommandLog, setShowCommandLog] = useState(false);
+
+  const addCommandLog = useCallback((type: 'voice' | 'text', command: string, count: number) => {
+    const entry: CommandEntry = {
+      id: `log_${Date.now()}`,
+      type,
+      command: command.length > 80 ? command.slice(0, 80) + '…' : command,
+      timestamp: new Date(),
+      count,
+    };
+    setCommandLog(prev => [entry, ...prev].slice(0, 20)); // keep last 20
+  }, []);
+
+  // ── Phase 6: Font Picker ──────────────────────────────────────────────────────
+  const [canvasFont, setCanvasFont] = useState('Inter');
+  const [showFontPicker, setShowFontPicker] = useState(false);
+
+  const FONTS = [
+    { name: 'Inter',            url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap' },
+    { name: 'Poppins',          url: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap' },
+    { name: 'Roboto',           url: 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap' },
+    { name: 'Montserrat',       url: 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap' },
+    { name: 'Playfair Display', url: 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap' },
+    { name: 'Nunito',           url: 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap' },
+    { name: 'Lato',             url: 'https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap' },
+    { name: 'Oswald',           url: 'https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&display=swap' },
+  ];
+
+  // Inject Google Fonts link into <head> when font changes
+  useEffect(() => {
+    const font = FONTS.find(f => f.name === canvasFont);
+    if (!font) return;
+    const existingId = 'gfont-s2d';
+    let link = document.getElementById(existingId) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = existingId;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    link.href = font.url;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasFont]);
+
+  // ── Smart Regenerate ──────────────────────────────────────────────────────────
+  const [regenPrompt, setRegenPrompt] = useState('');
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  const handleRegenerate = async () => {
+    if (!activeComponent || !regenPrompt.trim() || !projectId) return;
+    setIsRegenerating(true);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const command = `Generate a single ${activeComponent.type} section: ${regenPrompt.trim()}. Return only one component.`;
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ command, language })
+      });
+      const data = await res.json();
+      if (data.components?.length > 0) {
+        const newHTML = data.components[0].htmlContent ?? data.components[0].html ?? '';
+        const updated = canvasState.map(c =>
+          c.id === activeComponent.id ? { ...c, htmlContent: newHTML } : c
+        );
+        pushNewStateToHistory(updated);
+        setEditingHTML(newHTML);
+        toast.success(`"${activeComponent.name}" regenerated!`);
+        if (typeof data.usageCount === 'number') setUsageCount(data.usageCount);
+      } else {
+        toast.error(data.message || 'AI returned no components.');
+      }
+    } catch {
+      toast.error('Regenerate failed — check connection.');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   return (
     <div className="h-screen bg-[#f1f5f9] flex flex-col pt-16 font-['Inter',_sans-serif]">
 
@@ -610,6 +1334,45 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
             userTier={userTier}
             onUpgrade={handleUpgrade}
             isUpgrading={isUpgrading}
+            allPages={pages}
+            canvasCache={pageCanvasCache.current}
+            canvasFont={canvasFont}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Template Library Modal */}
+      <AnimatePresence>
+        {showTemplateLibrary && (
+          <TemplateLibrary
+            onClose={() => setShowTemplateLibrary(false)}
+            onInsertSections={handleInsertTemplateSections}
+            onNewPageFromTemplate={handleNewPageFromTemplate}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Share Modal */}
+      <AnimatePresence>
+        {showShareModal && projectId && (
+          <ShareModal
+            projectId={projectId}
+            projectTitle={projectTitle}
+            onClose={() => setShowShareModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Website Preview Modal */}
+      <AnimatePresence>
+        {showPreview && (
+          <WebsitePreview
+            pages={pages}
+            canvasCache={pageCanvasCache.current}
+            activePageId={activePageId}
+            projectTitle={projectTitle}
+            onClose={() => setShowPreview(false)}
+            canvasFont={canvasFont}
           />
         )}
       </AnimatePresence>
@@ -626,6 +1389,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
             onChange={e => setProjectTitle(e.target.value)}
             className="font-bold text-gray-900 bg-transparent border-none outline-none hover:bg-gray-50 focus:bg-gray-50 px-2 py-1 rounded-lg transition-colors text-sm"
           />
+          {/* Active page breadcrumb */}
+          {activePageId && pages.length > 0 && (
+            <div className="flex items-center gap-1 text-xs text-gray-400">
+              <span>/</span>
+              <span className="font-medium text-gray-600">
+                {pages.find(p => p._id === activePageId)?.name ?? 'Page'}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -658,6 +1430,109 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
             title={ttsEnabled ? 'Disable Voice Feedback' : 'Enable Voice Feedback'}
           >
             {ttsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+
+          {/* Auto-save status indicator */}
+          {autoSaveStatus !== 'idle' && (
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              autoSaveStatus === 'saving' ? 'text-blue-600 bg-blue-50' :
+              autoSaveStatus === 'saved'  ? 'text-green-600 bg-green-50' :
+              'text-red-600 bg-red-50'
+            }`}>
+              {autoSaveStatus === 'saving' && <Loader2 className="w-3 h-3 animate-spin" />}
+              {autoSaveStatus === 'saved'  && <Check className="w-3 h-3" />}
+              {autoSaveStatus === 'error'  && <CloudOff className="w-3 h-3" />}
+              {autoSaveStatus === 'saving' ? 'Auto-saving…' : autoSaveStatus === 'saved' ? 'Auto-saved' : 'Save failed'}
+            </div>
+          )}
+
+          {/* Color theme picker */}
+          <div className="relative">
+            <button
+              onClick={() => setShowThemePicker(p => !p)}
+              title="Apply color theme"
+              className="flex items-center gap-1.5 px-3 py-2 bg-pink-50 border border-pink-200 text-pink-700 rounded-lg text-sm font-bold hover:bg-pink-100 transition-colors"
+            >
+              <Palette className="w-4 h-4" />
+              Theme
+            </button>
+            {showThemePicker && (
+              <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl p-3 z-50 w-40">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Color Themes</p>
+                {THEMES.map(t => (
+                  <button key={t.id} onClick={() => applyColorTheme(t.id)}
+                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-gray-50 text-left transition-colors">
+                    <span className={`w-3 h-3 rounded-full flex-shrink-0 ${t.dot}`} />
+                    <span className="text-sm font-semibold text-gray-700">{t.label}</span>
+                  </button>
+                ))}
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <p className="text-[10px] text-gray-400 px-1 leading-relaxed">Swaps primary colors. Ctrl+Z to undo.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Font Picker */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowFontPicker(p => !p); setShowThemePicker(false); }}
+              title="Change canvas font"
+              className="flex items-center gap-1.5 px-3 py-2 bg-sky-50 border border-sky-200 text-sky-700 rounded-lg text-sm font-bold hover:bg-sky-100 transition-colors"
+            >
+              <Type className="w-4 h-4" />
+              {canvasFont === 'Inter' ? 'Font' : canvasFont.split(' ')[0]}
+            </button>
+            {showFontPicker && (
+              <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl p-3 z-50 w-52">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Canvas Font</p>
+                {FONTS.map(f => (
+                  <button
+                    key={f.name}
+                    onClick={() => { setCanvasFont(f.name); setShowFontPicker(false); toast.success(`Font set to ${f.name}`); }}
+                    className={`w-full flex items-center justify-between px-2 py-2 rounded-xl transition-colors text-left ${
+                      canvasFont === f.name ? 'bg-sky-50 text-sky-700' : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <span className="text-sm font-semibold">{f.name}</span>
+                    {canvasFont === f.name && <Check className="w-3.5 h-3.5 text-sky-600" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Share button */}
+          <button
+            onClick={() => {
+              if (!projectId) { toast.error('Save the project first before sharing.'); return; }
+              setShowShareModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm font-bold hover:bg-orange-100 transition-colors"
+            title="Share project"
+          >
+            <Share2 className="w-4 h-4" />
+            Share
+          </button>
+
+          <button
+            onClick={() => {
+              if (pages.length === 0) { toast.error('No pages found — save the project first.'); return; }
+              setShowPreview(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-sm font-bold hover:bg-emerald-100 transition-colors"
+            title="Preview website"
+          >
+            <Eye className="w-4 h-4" />
+            Preview
+          </button>
+          <button
+            onClick={() => setShowTemplateLibrary(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 border border-violet-200 text-violet-700 rounded-lg text-sm font-bold hover:bg-violet-100 transition-colors"
+            title="Browse template library"
+          >
+            <LayoutTemplate className="w-4 h-4" />
+            Templates
           </button>
           <div className="h-6 w-px bg-gray-200 mx-1" />
           <button onClick={handleSaveProject} disabled={isSaving || !projectId}
@@ -743,16 +1618,101 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
               </form>
             </div>
 
+            {/* Command History Log */}
+            {commandLog.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setShowCommandLog(p => !p)}
+                  className="w-full flex items-center justify-between mb-2 ml-1"
+                >
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <History className="w-3 h-3" /> History ({commandLog.length})
+                  </p>
+                  {showCommandLog ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                </button>
+                {showCommandLog && (
+                  <div className="space-y-1.5">
+                    {commandLog.slice(0, 10).map(entry => (
+                      <div key={entry.id}
+                        className="p-2 bg-gray-50 border border-gray-100 rounded-xl flex items-start gap-2 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all"
+                        onClick={() => setTextCommand(entry.command.endsWith('…') ? entry.command.slice(0, -1) : entry.command)}
+                        title="Click to reuse this command"
+                      >
+                        <div className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                          entry.type === 'voice' ? 'bg-red-100' : 'bg-blue-100'
+                        }`}>
+                          {entry.type === 'voice'
+                            ? <Mic className="w-2.5 h-2.5 text-red-600" />
+                            : <Type className="w-2.5 h-2.5 text-blue-600" />
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-gray-700 leading-snug break-words line-clamp-2">{entry.command}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {entry.count} component{entry.count !== 1 ? 's' : ''} · {entry.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setCommandLog([])}
+                      className="w-full text-[10px] text-gray-400 hover:text-red-500 py-1 transition-colors"
+                    >
+                      Clear history
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Pages */}
+            {pages.length > 0 && (
+              <div>
+                <PageManager
+                  pages={pages}
+                  activePageId={activePageId}
+                  onSwitch={switchPage}
+                  onAdd={addPage}
+                  onRename={renamePage}
+                  onDuplicate={duplicatePageAction}
+                  onDelete={deletePageAction}
+                />
+              </div>
+            )}
+
             {/* Layers */}
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">
-                Layers ({canvasState.length})
-              </p>
+              <div className="flex items-center justify-between mb-2 ml-1">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Layers ({canvasState.length})
+                </p>
+              </div>
+              {/* Layer search */}
+              {canvasState.length > 2 && (
+                <div className="relative mb-2">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={layerSearch}
+                    onChange={e => setLayerSearch(e.target.value)}
+                    placeholder="Search layers…"
+                    className="w-full pl-7 pr-6 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                  {layerSearch && (
+                    <button onClick={() => setLayerSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )}
               {canvasState.length === 0 ? (
                 <p className="text-xs text-gray-400 italic p-2">No layers yet.</p>
               ) : (
                 <div className="space-y-1">
-                  {canvasState.map(comp => (
+                  {canvasState.filter(c =>
+                    !layerSearch || c.name.toLowerCase().includes(layerSearch.toLowerCase())
+                  ).map(comp => (
                     <div
                       key={comp.id}
                       draggable
@@ -761,7 +1721,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                       onDrop={e => handleDrop(e, comp.id)}
                       onDragEnd={handleDragEnd}
                       onClick={() => setSelectedComponentId(comp.id)}
-                      className={`w-full flex items-center justify-between p-2 rounded-xl text-sm transition-all cursor-pointer ${
+                      className={`group w-full flex items-center gap-1 p-2 rounded-xl text-sm transition-all cursor-pointer ${
                         dragOverId === comp.id
                           ? 'bg-blue-100 border-2 border-blue-400'
                           : selectedComponentId === comp.id
@@ -769,13 +1729,21 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                           : 'hover:bg-gray-50 text-gray-700'
                       }`}
                     >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <GripVertical className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 cursor-grab" />
-                        <span className="truncate text-xs">{comp.name}</span>
-                      </div>
+                      <GripVertical className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 cursor-grab" />
+                      <span className="truncate text-xs flex-1 min-w-0">{comp.name}</span>
+                      {/* Duplicate */}
+                      <button
+                        onClick={e => { e.stopPropagation(); duplicateComponent(comp.id); }}
+                        title="Duplicate"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-500 rounded transition-all flex-shrink-0"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                      {/* Delete */}
                       <button
                         onClick={e => { e.stopPropagation(); removeComponent(comp.id); }}
-                        className="p-1 text-gray-400 hover:text-red-500 rounded flex-shrink-0"
+                        title="Delete"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 rounded transition-all flex-shrink-0"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -805,31 +1773,106 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
         </div>
 
         {/* ── Canvas Area ── */}
-        <div className="flex-1 relative bg-[#0f172a] overflow-auto flex flex-col p-6 items-center">
+        <div ref={canvasAreaRef} className="flex-1 relative bg-[#0f172a] overflow-auto flex flex-col p-6 items-center">
           {isProcessingAI && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-xl flex items-center gap-2 z-30">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating UI…
             </div>
           )}
 
+          {/* Zoom controls pill */}
+          <div className="absolute bottom-6 right-6 z-20 flex items-center gap-1 bg-gray-900/90 backdrop-blur-sm border border-white/10 rounded-full px-2 py-1.5 shadow-xl">
+            <button onClick={zoomOut} disabled={canvasZoom <= ZOOM_STEPS[0]} title="Zoom out"
+              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors rounded-full hover:bg-white/10">
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={zoomReset} title="Reset zoom (100%)"
+              className="px-2 text-xs font-bold text-gray-300 hover:text-white transition-colors min-w-[42px] text-center">
+              {Math.round(canvasZoom * 100)}%
+            </button>
+            <button onClick={zoomIn} disabled={canvasZoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} title="Zoom in"
+              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors rounded-full hover:bg-white/10">
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <div className="w-px h-4 bg-white/10 mx-1" />
+            <button onClick={zoomReset} title="Fit to screen"
+              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10">
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Zoom wrapper */}
+          <div style={{
+            transform: `scale(${canvasZoom})`,
+            transformOrigin: 'top center',
+            width: '100%',
+            transition: 'transform 0.15s ease',
+            fontFamily: canvasFont === 'Inter' ? undefined : `'${canvasFont}', sans-serif`,
+          }}>
           <div className="w-full min-h-[600px] bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-gray-800 flex flex-col">
             <div className="absolute inset-0 opacity-[0.02] pointer-events-none"
               style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
             {canvasState.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mb-6">
-                  <Mic className="w-10 h-10 text-gray-400" />
-                </div>
-                <p className="text-gray-600 font-semibold text-lg mb-2">Your canvas is empty</p>
-                <p className="text-gray-400 text-sm max-w-sm">
-                  Hold the mic and say{' '}
-                  <span className="text-blue-500 font-medium">"Add a hero section with a dark gradient"</span>
+              <div className="flex-1 flex flex-col items-center justify-center p-12">
+                <p className="text-gray-600 font-bold text-xl mb-2 text-center">Start building your page</p>
+                <p className="text-gray-400 text-sm text-center mb-10">
+                  Pick any method below — or combine them all.
                 </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
+                  {/* Voice */}
+                  <button
+                    onMouseDown={activateAudioCaptureStream}
+                    onMouseUp={terminateAudioCaptureStream}
+                    onTouchStart={activateAudioCaptureStream}
+                    onTouchEnd={terminateAudioCaptureStream}
+                    disabled={isProcessingAI}
+                    className={`group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all text-center ${
+                      isListening
+                        ? 'border-red-400 bg-red-50'
+                        : 'border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50 bg-gray-50 cursor-pointer'
+                    }`}
+                  >
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isListening ? 'bg-red-100' : 'bg-blue-100 group-hover:bg-blue-200'} transition-colors`}>
+                      <Mic className={`w-6 h-6 ${isListening ? 'text-red-500' : 'text-blue-600'}`} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-800 text-sm">{isListening ? 'Listening…' : 'Hold to Speak'}</p>
+                      <p className="text-gray-400 text-xs mt-0.5">Describe a UI component</p>
+                    </div>
+                  </button>
+
+                  {/* Text */}
+                  <button
+                    onClick={() => { const el = document.querySelector<HTMLTextAreaElement>('textarea[placeholder*="hero"]'); el?.focus(); }}
+                    className="group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-violet-400 hover:bg-violet-50 bg-gray-50 transition-all text-center cursor-pointer"
+                  >
+                    <div className="w-12 h-12 bg-violet-100 group-hover:bg-violet-200 rounded-2xl flex items-center justify-center transition-colors">
+                      <Keyboard className="w-6 h-6 text-violet-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-800 text-sm">Type a Command</p>
+                      <p className="text-gray-400 text-xs mt-0.5">Use the text box on the left</p>
+                    </div>
+                  </button>
+
+                  {/* Templates */}
+                  <button
+                    onClick={() => setShowTemplateLibrary(true)}
+                    className="group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 bg-gray-50 transition-all text-center cursor-pointer"
+                  >
+                    <div className="w-12 h-12 bg-emerald-100 group-hover:bg-emerald-200 rounded-2xl flex items-center justify-center transition-colors">
+                      <LayoutTemplate className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-800 text-sm">Use a Template</p>
+                      <p className="text-gray-400 text-xs mt-0.5">30+ ready-made sections</p>
+                    </div>
+                  </button>
+                </div>
                 {language === 'Urdu' && (
-                  <p className="text-gray-400 text-sm mt-2">
-                    یا اردو میں:{' '}
-                    <span className="text-blue-500 font-medium">"ایک ہیرو سیکشن شامل کریں"</span>
+                  <p className="text-gray-400 text-xs mt-8 text-center">
+                    اردو آواز کمانڈ کے لیے بائیں پینل میں "Urdu" منتخب کریں
                   </p>
                 )}
               </div>
@@ -889,9 +1932,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
               >
                 <div className="relative">
                   {isListening && (
-                    <motion.div animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
+                    <motion.div
+                      animate={{ scale: [0.6, 0, 0.6] }}
                       transition={{ duration: 1.2, repeat: Infinity }}
-                      className="absolute inset-0 bg-white rounded-full" />
+                      className="absolute inset-0 bg-white rounded-full"
+                    />
                   )}
                   <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
                     <Mic className="w-4 h-4" />
@@ -901,6 +1946,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
               </button>
             </div>
           </div>
+          </div> {/* /zoom wrapper */}
 
           {/* Voice feedback waveform */}
           <AnimatePresence>
@@ -937,23 +1983,49 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 
           {activeComponent ? (
             <div className="space-y-4">
+              {/* Inspector tab switcher */}
+              <div className="flex bg-gray-100 rounded-xl p-0.5">
+                {(['properties', 'code'] as const).map(tab => (
+                  <button key={tab} onClick={() => setInspectorTab(tab)}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg capitalize transition-all ${
+                      inspectorTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}>
+                    {tab === 'code' ? '< / > HTML' : '⚙ Properties'}
+                  </button>
+                ))}
+              </div>
+
+              {inspectorTab === 'properties' ? (<>
+              {/* Editable component name */}
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Component</label>
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800">
-                  {activeComponent.name}
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Name</label>
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    value={editingName}
+onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
+                    onBlur={nameDirty ? applyNameEdit : undefined}
+                    onKeyDown={e => { if (e.key === 'Enter') applyNameEdit(); }}
+                    className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                  />
+                  {nameDirty && (
+                    <button onClick={applyNameEdit}
+                      className="px-2 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Type</label>
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 font-mono">
+                <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 font-mono">
                   {activeComponent.type}
                 </div>
               </div>
 
-              {/* FR_05: Layout & Size — manual resize / align / spacing */}
+              {/* Layout & Size */}
               <div className="border-t border-gray-100 pt-4 space-y-3">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Layout &amp; Size</label>
-
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Layout & Size</label>
                 <div>
                   <p className="text-[10px] font-semibold text-gray-500 mb-1">Width</p>
                   <div className="grid grid-cols-4 gap-1 bg-gray-100 p-1 rounded-lg">
@@ -966,7 +2038,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                     ))}
                   </div>
                 </div>
-
                 <div>
                   <p className="text-[10px] font-semibold text-gray-500 mb-1">Alignment</p>
                   <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
@@ -980,7 +2051,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                   </div>
                   <p className="text-[9px] text-gray-400 mt-1">Alignment applies when width is below Full.</p>
                 </div>
-
                 <div>
                   <p className="text-[10px] font-semibold text-gray-500 mb-1">Spacing</p>
                   <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
@@ -995,11 +2065,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                 </div>
               </div>
 
-              {/* Style suggestions — populate text command box */}
+              {/* Quick Style Actions */}
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
-                  Quick Style Actions
-                </label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Quick Style Actions</label>
                 <div className="space-y-1.5">
                   {[
                     `Make the ${activeComponent.name} dark themed`,
@@ -1008,51 +2076,121 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                     `Make ${activeComponent.name} text larger`,
                     `Make ${activeComponent.name} more colorful`,
                   ].map(suggestion => (
-                    <button
-                      key={suggestion}
-                      onClick={() => {
-                        setTextCommand(suggestion);
-                        toast.info('Command added to text box. Click Generate to apply.');
-                      }}
-                      className="w-full text-left text-xs px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-all text-gray-600"
-                    >
+                    <button key={suggestion}
+                      onClick={() => { setTextCommand(suggestion); toast.info('Command added to text box. Click Generate to apply.'); }}
+                      className="w-full text-left text-xs px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-all text-gray-600">
                       {suggestion}
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-gray-400 mt-2 italic">
-                  Click to populate text box, then hit Generate.
-                </p>
+                <p className="text-[10px] text-gray-400 mt-2 italic">Click to populate text box, then hit Generate.</p>
               </div>
 
+              {/* Smart Regenerate */}
+              <div className="border-t border-gray-100 pt-4">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-amber-500" /> AI Regenerate
+                </label>
+                <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                  Describe how to remake this component.
+                </p>
+                <textarea
+                  value={regenPrompt}
+                  onChange={e => setRegenPrompt(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleRegenerate(); } }}
+                  placeholder={`e.g. "make it dark with a gradient background"`}
+                  rows={2}
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs resize-none outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                />
+                <button
+                  onClick={handleRegenerate}
+                  disabled={isRegenerating || !regenPrompt.trim() || !projectId}
+                  className="mt-2 w-full flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isRegenerating
+                    ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Regenerating…</>
+                    : <><Sparkles className="w-3.5 h-3.5" /> Regenerate</>
+                  }
+                </button>
+              </div>
+
+              {/* Actions */}
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Actions</label>
-                {/* FR_05: Move component up / down in the canvas stack */}
                 <div className="grid grid-cols-2 gap-2 mb-2">
-                  <button
-                    onClick={() => moveComponent(activeComponent.id, 'up')}
-                    disabled={canvasState.findIndex(c => c.id === activeComponent.id) === 0}
-                    className="flex items-center justify-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Move component up"
-                  >
-                    <ArrowUp className="w-3.5 h-3.5" /> Move Up
+                  <button onClick={() => duplicateComponent(activeComponent.id)}
+                    className="flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold py-2 rounded-xl text-xs transition-colors">
+                    <Copy className="w-3.5 h-3.5" /> Duplicate
                   </button>
                   <button
-                    onClick={() => moveComponent(activeComponent.id, 'down')}
-                    disabled={canvasState.findIndex(c => c.id === activeComponent.id) === canvasState.length - 1}
-                    className="flex items-center justify-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Move component down"
+                    onClick={() => {
+                      const raw = localStorage.getItem('s2d_library');
+                      const lib: CanvasComponent[] = raw ? JSON.parse(raw) : [];
+                      if (lib.length >= 20) { toast.error('Library full (20 max). Remove a saved component first.'); return; }
+                      const entry = { ...activeComponent, id: `lib_${Date.now()}` };
+                      lib.unshift(entry);
+                      localStorage.setItem('s2d_library', JSON.stringify(lib));
+                      toast.success(`"${activeComponent.name}" saved to My Library!`);
+                    }}
+                    className="flex items-center justify-center gap-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 font-bold py-2 rounded-xl text-xs transition-colors"
+                    title="Save to My Library"
                   >
+                    <BookMarked className="w-3.5 h-3.5" /> Save
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <button onClick={() => moveComponent(activeComponent.id, 'up')}
+                    disabled={canvasState.findIndex(c => c.id === activeComponent.id) === 0}
+                    className="flex items-center justify-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                    <ArrowUp className="w-3.5 h-3.5" /> Move Up
+                  </button>
+                  <button onClick={() => moveComponent(activeComponent.id, 'down')}
+                    disabled={canvasState.findIndex(c => c.id === activeComponent.id) === canvasState.length - 1}
+                    className="flex items-center justify-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 font-bold py-2 rounded-xl text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                     <ArrowDown className="w-3.5 h-3.5" /> Move Down
                   </button>
                 </div>
-                <button
-                  onClick={() => removeComponent(activeComponent.id)}
-                  className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold py-2.5 rounded-xl text-xs transition-colors"
-                >
+                <button onClick={() => removeComponent(activeComponent.id)}
+                  className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold py-2.5 rounded-xl text-xs transition-colors">
                   Delete Component
                 </button>
               </div>
+              </>) : (
+              /* HTML Editor tab */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">HTML Editor</label>
+                  <span className="text-[10px] text-gray-400 font-mono">{editingHTML.length.toLocaleString()} chars</span>
+                </div>
+                <p className="text-[11px] text-gray-500 leading-relaxed">
+                  Edit raw Tailwind HTML. Hit "Apply" to update the canvas.
+                </p>
+                <textarea
+                  value={editingHTML}
+                  onChange={e => { setEditingHTML(e.target.value); setHtmlDirty(true); }}
+                  spellCheck={false}
+                  className="w-full h-72 p-3 bg-gray-900 text-green-400 text-[11px] font-mono leading-relaxed rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700"
+                />
+                <div className="flex gap-2">
+                  <button onClick={applyHTMLEdit} disabled={!htmlDirty}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <Check className="w-3.5 h-3.5" /> Apply Changes
+                  </button>
+                  <button onClick={() => { setEditingHTML(activeComponent.htmlContent); setHtmlDirty(false); }}
+                    disabled={!htmlDirty}
+                    className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    Revert
+                  </button>
+                </div>
+                {htmlDirty && <p className="text-[10px] text-amber-600">⚠ Unsaved HTML changes</p>}
+                <div className="border-t border-gray-100 pt-3 space-y-1 text-[10px] text-gray-500">
+                  <p className="font-bold text-gray-400 uppercase tracking-widest mb-1">Tips</p>
+                  <p>All Tailwind utilities work via CDN.</p>
+                  <p><kbd className="bg-gray-100 px-1 py-0.5 rounded font-mono">Ctrl+Z</kbd> undoes typing.</p>
+                </div>
+              </div>
+              )}
+
             </div>
           ) : (
             <div className="space-y-4">

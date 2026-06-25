@@ -9,11 +9,12 @@ import { Workspace } from './components/Workspace';
 import { Marketplace } from './components/Marketplace';
 import { Checkout } from './components/Checkout';
 import { SettingsScreen } from './components/Settings';
+import { PublicView } from './components/PublicView';
 import type { AppUser, Template } from './types';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:5000';
 
-type Page = 'signup' | 'dashboard' | 'workspace' | 'marketplace' | 'checkout' | 'settings';
+type Page = 'signup' | 'dashboard' | 'workspace' | 'marketplace' | 'checkout' | 'settings' | 'public_view';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('signup');
@@ -22,6 +23,20 @@ export default function App() {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
+  const [publicShareToken, setPublicShareToken] = useState<string | null>(null);
+
+  // ── Detect /view/:token share links before anything else ──────────────────
+  // The app uses a state-machine router without React Router, so we intercept
+  // the pathname here and redirect to the public view page.
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/view\/([a-f0-9]{32})$/i);
+    if (match) {
+      setPublicShareToken(match[1]);
+      setCurrentPage('public_view');
+      // Clean the URL so reloading doesn't re-trigger other effects
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   // Handle OAuth (Google/GitHub) return: ?token=... on success, ?oauth_error=... on failure.
   useEffect(() => {
@@ -168,6 +183,18 @@ export default function App() {
             user={user}
             onBack={() => setCurrentPage('dashboard')}
             onUserUpdate={handleUserUpdate}
+            onSignOut={clearUserSession}
+          />
+        );
+      case 'public_view':
+        return (
+          <PublicView
+            shareToken={publicShareToken || ''}
+            onBack={() => {
+              // Navigate to dashboard if logged in, otherwise sign-up
+              window.history.replaceState({}, '', '/');
+              setCurrentPage(authToken && user ? 'dashboard' : 'signup');
+            }}
           />
         );
       default:
@@ -182,18 +209,22 @@ export default function App() {
       case 'workspace': return { title: 'Voice Canvas',      text: 'Press the microphone to activate AI transcription. Command the AI in English or Urdu.' };
       case 'marketplace': return { title: 'Asset Hub',       text: 'Buy professionally designed templates or sell your own voice-created masterpieces.' };
       case 'checkout':  return { title: 'Secure Payment',    text: 'Pay using EasyPaisa/JazzCash or International Cards via Stripe.' };
-      case 'settings':  return { title: 'Personalization',   text: 'Update your profile, switch voice language, and manage your plan.' };
-      default:          return { title: 'Speak2Design',      text: 'The future of UI design is vocal.' };
+      case 'settings':     return { title: 'Personalization',  text: 'Update your profile, switch voice language, and manage your plan.' };
+      case 'public_view':  return { title: 'Shared Project',   text: 'Viewing a read-only shared design from Speak2Design.' };
+      default:             return { title: 'Speak2Design',     text: 'The future of UI design is vocal.' };
     }
   };
 
   const annotation = getAnnotationText();
-  const showSidebar = !['signup', 'workspace'].includes(currentPage) && user !== null;
+  // public_view and workspace are full-screen — no sidebar, no top nav, no annotation
+  const isFullScreen = currentPage === 'public_view' || currentPage === 'workspace';
+  const showSidebar  = !isFullScreen && !['signup'].includes(currentPage) && user !== null;
+  const showTopNav   = !isFullScreen && currentPage !== 'signup' && user !== null;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-['Inter',_sans-serif]">
       <Toaster position="top-center" richColors />
-      {currentPage !== 'signup' && user && (
+      {showTopNav && (
         <TopNavbar currentPage={currentPage} onNavigate={handleNavigate} user={user} />
       )}
       {showSidebar && <Sidebar currentPage={currentPage} onNavigate={handleNavigate} />}
@@ -210,7 +241,7 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <Annotation title={annotation.title} text={annotation.text} />
+      {!isFullScreen && <Annotation title={annotation.title} text={annotation.text} />}
     </div>
   );
 }

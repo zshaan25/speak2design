@@ -48,6 +48,11 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Template'
   }],
+  // ─── Account status ─────────────────────────────────────────────────────────
+  // Deactivated accounts are blocked from logging in / using the API.
+  // Unlike deletion, deactivation is reversible by logging in again.
+  isDeactivated: { type: Boolean, default: false },
+  deactivatedAt: { type: Date, default: undefined },
   createdAt: {
     type: Date,
     default: Date.now

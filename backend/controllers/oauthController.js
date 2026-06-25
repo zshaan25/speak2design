@@ -2,36 +2,45 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:5000';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+// IMPORTANT: read process.env inside a function, NOT at module load time.
+// In ESM, this file is evaluated before dotenv.config() runs in server.js,
+// so top-level constants that read process.env will see undefined.
+// Using getter functions ensures env vars are read on every request, after
+// dotenv has already populated process.env.
+const getBackendUrl  = () => process.env.BACKEND_URL  || 'http://127.0.0.1:5000';
+const getFrontendUrl = () => process.env.FRONTEND_URL || 'http://localhost:5173';
 
-const PROVIDERS = {
+const getProviders = () => ({
   google: {
-    id: process.env.GOOGLE_CLIENT_ID,
-    secret: process.env.GOOGLE_CLIENT_SECRET,
+    id:      process.env.GOOGLE_CLIENT_ID,
+    secret:  process.env.GOOGLE_CLIENT_SECRET,
     authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-    tokenUrl: 'https://oauth2.googleapis.com/token',
-    scope: 'openid email profile'
+    tokenUrl:'https://oauth2.googleapis.com/token',
+    scope:   'openid email profile'
   },
   github: {
-    id: process.env.GITHUB_CLIENT_ID,
-    secret: process.env.GITHUB_CLIENT_SECRET,
+    id:      process.env.GITHUB_CLIENT_ID,
+    secret:  process.env.GITHUB_CLIENT_SECRET,
     authUrl: 'https://github.com/login/oauth/authorize',
-    tokenUrl: 'https://github.com/login/oauth/access_token',
-    scope: 'read:user user:email'
+    tokenUrl:'https://github.com/login/oauth/access_token',
+    scope:   'read:user user:email'
   }
-};
+});
 
-const callbackUrl = (provider) => `${BACKEND_URL}/api/auth/oauth/${provider}/callback`;
-const isConfigured = (p) => !!(PROVIDERS[p]?.id && PROVIDERS[p]?.secret);
+const callbackUrl = (provider) => `${getBackendUrl()}/api/auth/oauth/${provider}/callback`;
+const isConfigured = (p) => {
+  const cfg = getProviders()[p];
+  return !!(cfg?.id && cfg?.secret &&
+    !String(cfg.id).includes('PASTE_') && !String(cfg.id).includes('YOUR_'));
+};
 const signToken = (userId) => jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 const frontendRedirect = (res, params) =>
-  res.redirect(`${FRONTEND_URL}/?${new URLSearchParams(params).toString()}`);
+  res.redirect(`${getFrontendUrl()}/?${new URLSearchParams(params).toString()}`);
 
 // ─── Step 1: redirect user to the provider's consent screen ───────────────────
 export const oauthRedirect = (req, res) => {
   const provider = req.params.provider;
-  const cfg = PROVIDERS[provider];
+  const cfg = getProviders()[provider];
   if (!cfg) return res.status(404).json({ success: false, message: 'Unknown OAuth provider.' });
   if (!isConfigured(provider)) {
     return frontendRedirect(res, { oauth_error: 'not_configured', provider });
@@ -48,7 +57,7 @@ export const oauthRedirect = (req, res) => {
 
 // ─── Provider profile fetchers ────────────────────────────────────────────────
 const exchangeCode = async (provider, code) => {
-  const cfg = PROVIDERS[provider];
+  const cfg = getProviders()[provider];
   const body = {
     client_id: cfg.id,
     client_secret: cfg.secret,
@@ -90,7 +99,7 @@ const fetchGithubProfile = async (accessToken) => {
 export const oauthCallback = async (req, res) => {
   const provider = req.params.provider;
   try {
-    if (!PROVIDERS[provider]) return frontendRedirect(res, { oauth_error: 'unknown_provider' });
+    if (!getProviders()[provider]) return frontendRedirect(res, { oauth_error: 'unknown_provider' });
     if (!isConfigured(provider)) return frontendRedirect(res, { oauth_error: 'not_configured', provider });
     if (req.query.error || !req.query.code) {
       return frontendRedirect(res, { oauth_error: 'access_denied', provider });

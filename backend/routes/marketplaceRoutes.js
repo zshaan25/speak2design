@@ -8,9 +8,13 @@ import {
   createCheckoutSessionHandler,
   webhookHandler,
   unpublishTemplate,
+  reseedTemplates,
 } from '../controllers/marketplaceController.js';
 
 const router = express.Router();
+
+// ─── Dev helper: (re)seed demo templates ──────────────────────────────────────
+router.post('/seed', requireAuthentication, reseedTemplates);
 
 // ─── Stripe webhook — raw body, NO auth ──────────────────────────────────────
 // express.raw() is mounted in server.js at /api/marketplace/webhook BEFORE express.json()

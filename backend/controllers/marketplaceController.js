@@ -8,6 +8,60 @@ import {
   constructWebhookEvent,
 } from '../services/stripe.js';
 
+// ─── Demo template seeding ────────────────────────────────────────────────────
+// Re-adds curated starter templates so a fresh database isn't an empty marketplace.
+// Idempotent: only seeds when no system templates exist. uniquenessHash is left
+// null on purpose (sparse-unique index allows many nulls).
+const DEMO_TEMPLATES = [
+  { title: 'Modern Dashboard UI', description: 'Clean analytics dashboard with charts and stat panels.', price: 0,    imageUrl: '/previews/dashboard.svg', color: 'from-indigo-500 to-blue-600',  lang: 'English', category: 'Dashboards',    tags: ['dashboard','admin','charts'],  rating: 4.8, sales: 124, isPremiumOnly: false },
+  { title: 'E-commerce Storefront', description: 'Product listing storefront with cart and pricing.',      price: 1500, imageUrl: '/previews/ecommerce.svg', color: 'from-rose-400 to-pink-600',  lang: 'English', category: 'Landing Pages', tags: ['ecommerce','shop','store'],     rating: 4.9, sales: 98,  isPremiumOnly: false },
+  { title: 'اردو بلاگ ٹیمپلیٹ',      description: 'Urdu RTL blog layout with clean typography.',             price: 0,    imageUrl: '/previews/blog.svg',      color: 'from-cyan-500 to-teal-600', lang: 'Urdu',    category: 'Blogs',         tags: ['blog','urdu','rtl'],           rating: 4.7, sales: 67,  isPremiumOnly: false },
+  { title: 'SaaS Landing Page',     description: 'Premium SaaS product page with hero and pricing tiers.',  price: 3500, imageUrl: '/previews/saas.svg',      color: 'from-emerald-500 to-green-600', lang: 'English', category: 'Landing Pages', tags: ['saas','startup','pricing'],    rating: 5.0, sales: 215, isPremiumOnly: true  },
+  { title: 'Mobile App Kit',        description: 'Complete mobile app UI kit with all key screens.',        price: 3000, imageUrl: '/previews/mobile.svg',    color: 'from-amber-500 to-orange-600',  lang: 'English', category: 'UI Kits',       tags: ['mobile','app','kit'],          rating: 4.6, sales: 89,  isPremiumOnly: true  },
+  { title: 'اردو پورٹ فولیو',        description: 'Urdu portfolio site for freelancers and creatives.',     price: 0,    imageUrl: '/previews/portfolio.svg', color: 'from-blue-600 to-indigo-800',   lang: 'Urdu',    category: 'Portfolio',     tags: ['portfolio','urdu','freelance'],rating: 4.8, sales: 45,  isPremiumOnly: false },
+];
+
+export const seedDefaultTemplates = async ({ force = false } = {}) => {
+  // Only consider live system templates so leftover inactive rows don't block seeding.
+  const existing = await Template.countDocuments({ sellerId: null, isActive: true });
+  if (existing > 0 && !force) return { seeded: 0, skipped: true };
+
+  const docs = DEMO_TEMPLATES.map(t => ({
+    ...t,
+    name: t.title,
+    author: 'Speak2Design Team',
+    authorName: 'Speak2Design Team',
+    sellerId: null,
+    // Distinct hash per demo — avoids the sparse-unique index collision that a
+    // shared null value would cause.
+    uniquenessHash: crypto.createHash('md5').update(`seed:${t.title}`).digest('hex'),
+    canvasSnapshot: [],
+    isActive: true,
+  }));
+  // ordered:false → skip any pre-existing duplicates instead of aborting the batch.
+  let seeded = 0;
+  try {
+    const r = await Template.insertMany(docs, { ordered: false });
+    seeded = r.length;
+  } catch (err) {
+    seeded = err?.insertedDocs?.length ?? 0; // partial inserts still count
+    if (err.code !== 11000) console.warn('>>> Seed warning:', err.message);
+  }
+  console.log(`[Seed] Inserted ${seeded}/${docs.length} demo marketplace templates.`);
+  return { seeded, skipped: false };
+};
+
+// POST /api/marketplace/seed — dev helper to (re)seed demo templates.
+export const reseedTemplates = async (req, res) => {
+  try {
+    const result = await seedDefaultTemplates({ force: true });
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    console.error('>>> Reseed error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to seed templates.' });
+  }
+};
+
 // ─── GET /api/marketplace ─────────────────────────────────────────────────────
 export const getTemplates = async (req, res) => {
   try {

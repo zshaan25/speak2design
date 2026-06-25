@@ -35,13 +35,22 @@ test('sanitizeHTMLContent handles non-string input', () => {
   assert.equal(sanitizeHTMLContent(42), '');
 });
 
-test('sanitizeCanvas drops components with disallowed types', () => {
+test('sanitizeCanvas normalises unknown types to "section" and keeps the component', () => {
   const out = sanitizeCanvas([
     { id: '1', type: 'navbar', name: 'Nav', htmlContent: '<nav>x</nav>' },
-    { id: '2', type: 'malware', name: 'Bad', htmlContent: '<div>x</div>' },
+    { id: '2', type: 'login',  name: 'Login', htmlContent: '<form>x</form>' },
   ]);
-  assert.equal(out.length, 1);
+  assert.equal(out.length, 2);
   assert.equal(out[0].type, 'navbar');
+  assert.equal(out[1].type, 'section');
+});
+
+test('sanitizeCanvas drops components that have no renderable HTML', () => {
+  const out = sanitizeCanvas([
+    { id: '1', type: 'hero', name: 'Hero', htmlContent: '' },
+    { id: '2', type: 'hero', name: 'Hero2', htmlContent: '<script>bad()</script>' },
+  ]);
+  assert.equal(out.length, 0);
 });
 
 test('sanitizeCanvas backfills a missing id', () => {

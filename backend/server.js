@@ -9,6 +9,7 @@ import morgan from 'morgan';
 
 import connectDB from './config/db.js';
 import { globalErrorHandler } from './middleware/error.js';
+import { seedDefaultTemplates } from './controllers/marketplaceController.js';
 
 import authRoutes        from './routes/authRoutes.js';
 import voiceRoutes       from './routes/voiceRoutes.js';
@@ -96,7 +97,10 @@ if (!process.env.GROQ_API_KEY) {
   console.warn('>>> WARNING: GROQ_API_KEY is not set. Voice and AI features will fail.');
 }
 
-connectDB().then(() => {
+connectDB().then(async () => {
+
+  // Seed demo marketplace templates on an empty DB (idempotent).
+  try { await seedDefaultTemplates(); } catch (e) { console.warn('>>> Template seed skipped:', e.message); }
 
   app.listen(PORT, () => {
     console.log(`[Speak2Design] Server live on port ${PORT} (${process.env.NODE_ENV || 'development'})`);

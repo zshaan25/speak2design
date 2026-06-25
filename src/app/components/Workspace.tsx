@@ -700,15 +700,38 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
     }
   };
 
+  // Effective project id — auto-creates a project the first time Save runs without
+  // one (e.g. Workspace opened from the sidebar with no project selected) (#2).
+  const createdProjectIdRef = useRef<string | null>(null);
+  const ensureProjectId = useCallback(async (): Promise<string | null> => {
+    if (projectId) return projectId;
+    if (createdProjectIdRef.current) return createdProjectIdRef.current;
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: projectTitle || 'Untitled Project', language })
+      });
+      const data = await res.json();
+      if (data.success && data.project?._id) {
+        createdProjectIdRef.current = data.project._id;
+        return data.project._id;
+      }
+    } catch { /* fall through */ }
+    return null;
+  }, [projectId, projectTitle, language]);
+
   // ── Save ─────────────────────────────────────────────────────────────────────
   const handleSaveProject = async () => {
-    if (!projectId) { toast.error('No project ID — create from Dashboard first.'); return; }
     setIsSaving(true);
     try {
       const token = localStorage.getItem('speak2design_token');
+      const pid = await ensureProjectId();
+      if (!pid) { toast.error('Could not create a project to save into. Check your connection.'); return; }
 
       // 1. Save project metadata + legacy canvasState (backwards compat)
-      const projRes = await fetch(`${API_BASE}/api/projects/${projectId}`, {
+      const projRes = await fetch(`${API_BASE}/api/projects/${pid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ canvasState, title: projectTitle, language })
@@ -822,7 +845,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         stream.getTracks().forEach(t => t.stop());
         if (blob.size < 1000) {
-          toast.error('Recording too short — hold the button while speaking.');
+          toast.error('Recording too short — click the mic and speak a little longer.');
           setIsListening(false);
           return;
         }
@@ -832,6 +855,42 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       setIsListening(true);
       setTranscription('Listening… speak your layout command.');
       setClarificationMessage(null);
+
+      // ── Auto-stop on silence (#3) ──────────────────────────────────────────
+      try {
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const audioCtx = new AudioCtx();
+        const source   = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        source.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+
+        const SILENCE = 0.012;     // RMS threshold
+        const SILENCE_MS = 1600;   // stop after this much trailing silence
+        const MAX_MS = 15000;      // hard cap
+        let lastLoud = Date.now();
+        let spoke = false;
+        const startedAt = Date.now();
+
+        const poll = window.setInterval(() => {
+          analyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
+          const rms = Math.sqrt(sum / data.length);
+          const now = Date.now();
+          if (rms > SILENCE) { lastLoud = now; spoke = true; }
+          // Stop when: user spoke then went quiet, OR hit the hard cap.
+          if ((spoke && now - lastLoud > SILENCE_MS) || now - startedAt > MAX_MS) {
+            terminateAudioCaptureStream();
+          }
+        }, 150);
+
+        silenceCleanupRef.current = () => {
+          clearInterval(poll);
+          try { source.disconnect(); audioCtx.close(); } catch { /* ignore */ }
+        };
+      } catch { /* analyser unsupported — recording still works, click again to stop */ }
     } catch (err: any) {
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         toast.error('Microphone access denied. Click the 🔒 icon in your browser address bar and allow microphone access, then refresh.');
@@ -848,25 +907,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
     }
   };
 
+  // Tears down the silence-detection audio graph (set up in activate).
+  const silenceCleanupRef = useRef<(() => void) | null>(null);
+
   const terminateAudioCaptureStream = () => {
+    if (silenceCleanupRef.current) { silenceCleanupRef.current(); silenceCleanupRef.current = null; }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsListening(false);
     }
   };
 
-  // Safety net: if the user releases the mouse/touch outside the mic button while
-  // recording, stop the capture anyway so it never gets stuck in "Listening…".
-  useEffect(() => {
-    if (!isListening) return;
-    const stop = () => terminateAudioCaptureStream();
-    window.addEventListener('mouseup', stop);
-    window.addEventListener('touchend', stop);
-    return () => {
-      window.removeEventListener('mouseup', stop);
-      window.removeEventListener('touchend', stop);
-    };
-  }, [isListening]);
+  // #3: one click toggles recording. Click to start → speak → auto-stops on
+  // silence (or click again to stop). No hold required.
+  const toggleVoiceCapture = () => {
+    if (isProcessingAI) return;
+    if (isListening) terminateAudioCaptureStream();
+    else activateAudioCaptureStream();
+  };
 
   const processAudioPayload = async (audioBlob: Blob) => {
     setIsProcessingAI(true);
@@ -1137,17 +1195,19 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 
   // Silent save — no toast, just API call
   const silentSave = useCallback(async () => {
-    if (!projectId || canvasState.length === 0) return;
+    // Autosave only updates an existing project (never auto-creates).
+    const pid = projectId || createdProjectIdRef.current;
+    if (!pid || canvasState.length === 0) return;
     setAutoSaveStatus('saving');
     try {
       const token = localStorage.getItem('speak2design_token');
-      await fetch(`${API_BASE}/api/projects/${projectId}`, {
+      await fetch(`${API_BASE}/api/projects/${pid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ canvasState, title: projectTitle, language })
       });
       if (activePageId) {
-        await fetch(`${API_BASE}/api/projects/${projectId}/pages/${activePageId}`, {
+        await fetch(`${API_BASE}/api/projects/${pid}/pages/${activePageId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ canvasState })
@@ -1163,7 +1223,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
   }, [projectId, canvasState, projectTitle, language, activePageId]);
 
   useEffect(() => {
-    if (!projectId || historyPointer < 0) return;
+    const pid = projectId || createdProjectIdRef.current;
+    if (!pid || historyPointer < 0) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(silentSave, 8000);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
@@ -1437,6 +1498,22 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
             className="p-2 hover:bg-white/10 disabled:opacity-30 rounded-lg text-white/60" title="Redo">
             <Redo2 className="w-4 h-4" />
           </button>
+
+          {/* Zoom controls (top toolbar — Figma/Canva style) */}
+          <div className="flex items-center gap-0.5 glass rounded-lg px-1 py-0.5">
+            <button onClick={zoomOut} disabled={canvasZoom <= ZOOM_STEPS[0]} title="Zoom out (Ctrl -)"
+              className="w-7 h-7 flex items-center justify-center text-white/60 hover:text-white disabled:opacity-30 rounded-md hover:bg-white/10 transition-colors">
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button onClick={zoomReset} title="Reset to 100% (Ctrl 0)"
+              className="px-1 text-xs font-bold text-white/80 hover:text-white transition-colors min-w-[40px] text-center">
+              {Math.round(canvasZoom * 100)}%
+            </button>
+            <button onClick={zoomIn} disabled={canvasZoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} title="Zoom in (Ctrl +)"
+              className="w-7 h-7 flex items-center justify-center text-white/60 hover:text-white disabled:opacity-30 rounded-md hover:bg-white/10 transition-colors">
+              <ZoomIn className="w-4 h-4" />
+            </button>
+          </div>
           <button
             onClick={() => setTtsEnabled(p => !p)}
             className={`p-2 rounded-lg transition-colors ${ttsEnabled ? 'text-brand-cyan bg-brand-cyan/10' : 'text-white/40 hover:bg-white/10'}`}
@@ -1548,7 +1625,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
             Templates
           </button>
           <div className="h-6 w-px bg-white/10 mx-1" />
-          <button onClick={handleSaveProject} disabled={isSaving || !projectId}
+          <button onClick={handleSaveProject} disabled={isSaving}
             className="flex items-center gap-2 glass text-white px-4 py-2 rounded-lg text-sm font-bold hover:border-white/25 disabled:opacity-50 transition-colors">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save
@@ -1797,27 +1874,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
             </div>
           )}
 
-          {/* Zoom controls pill */}
-          <div className="absolute bottom-6 right-6 z-20 flex items-center gap-1 bg-gray-900/90 backdrop-blur-sm border border-white/10 rounded-full px-2 py-1.5 shadow-xl">
-            <button onClick={zoomOut} disabled={canvasZoom <= ZOOM_STEPS[0]} title="Zoom out"
-              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors rounded-full hover:bg-white/10">
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={zoomReset} title="Reset zoom (100%)"
-              className="px-2 text-xs font-bold text-gray-300 hover:text-white transition-colors min-w-[42px] text-center">
-              {Math.round(canvasZoom * 100)}%
-            </button>
-            <button onClick={zoomIn} disabled={canvasZoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} title="Zoom in"
-              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors rounded-full hover:bg-white/10">
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <div className="w-px h-4 bg-white/10 mx-1" />
-            <button onClick={zoomReset} title="Fit to screen"
-              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10">
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
           {/* Zoom wrapper */}
           <div style={{
             transform: `scale(${canvasZoom})`,
@@ -1839,10 +1895,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
                   {/* Voice */}
                   <button
-                    onMouseDown={activateAudioCaptureStream}
-                    onMouseUp={terminateAudioCaptureStream}
-                    onTouchStart={activateAudioCaptureStream}
-                    onTouchEnd={terminateAudioCaptureStream}
+                    onClick={toggleVoiceCapture}
                     disabled={isProcessingAI}
                     className={`group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all text-center ${
                       isListening
@@ -1854,7 +1907,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                       <Mic className={`w-6 h-6 ${isListening ? 'text-red-500' : 'text-blue-600'}`} />
                     </div>
                     <div>
-                      <p className="font-bold text-gray-800 text-sm">{isListening ? 'Listening…' : 'Hold to Speak'}</p>
+                      <p className="font-bold text-gray-800 text-sm">{isListening ? 'Listening… (click to stop)' : 'Click to Speak'}</p>
                       <p className="text-gray-400 text-xs mt-0.5">Describe a UI component</p>
                     </div>
                   </button>
@@ -1950,12 +2003,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
 
                 <button
                   type="button"
-                  aria-label={isListening ? 'Release to generate from your voice command' : 'Hold to speak a voice command'}
+                  aria-label={isListening ? 'Stop recording and generate' : 'Click to speak a voice command'}
                   aria-pressed={isListening}
-                  onMouseDown={activateAudioCaptureStream}
-                  onMouseUp={terminateAudioCaptureStream}
-                  onTouchStart={activateAudioCaptureStream}
-                  onTouchEnd={terminateAudioCaptureStream}
+                  onClick={toggleVoiceCapture}
                   disabled={isProcessingAI}
                   className={`group relative z-10 flex items-center gap-3 overflow-hidden text-white pl-4 pr-6 py-3 rounded-full font-bold shadow-2xl transition-transform active:scale-95 disabled:opacity-70 ${
                     isListening ? 'scale-105 shadow-[0_0_50px_-8px_rgba(236,72,153,.8)]' : 'shadow-[0_0_45px_-10px_rgba(99,102,241,.8)]'
@@ -1972,7 +2022,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
                       : <Mic className="w-4 h-4" />}
                   </span>
                   <span className="relative z-10">
-                    {isListening ? 'Release to Generate' : isProcessingAI ? 'AI is thinking…' : 'Hold to Speak'}
+                    {isListening ? 'Listening… click to stop' : isProcessingAI ? 'AI is thinking…' : 'Click to Speak'}
                   </span>
                 </button>
               </div>

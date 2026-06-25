@@ -4,7 +4,9 @@ import User from '../models/User.js';
 import { transcribeAudio, generateUI } from '../services/groq.js';
 
 const FREE_TIER_COMMAND_LIMIT = 10;
-const ALLOWED_TYPES = ['navbar', 'hero', 'features', 'cards', 'form', 'footer', 'cta', 'pricing', 'testimonials', 'gallery'];
+// Known semantic types (used for icons/labels). Anything else with valid HTML is
+// kept and normalised to 'section' so AI output is never silently dropped (#13).
+const ALLOWED_TYPES = ['navbar', 'hero', 'features', 'cards', 'form', 'footer', 'cta', 'pricing', 'testimonials', 'gallery', 'section'];
 const USAGE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ─── Rolling 30-day usage window reset ───────────────────────────────────────
@@ -34,14 +36,19 @@ export const sanitizeCanvas = (canvas) => {
   return canvas
     .filter(comp => comp && typeof comp === 'object')
     .map(comp => {
-      const type = String(comp.type || '').toLowerCase();
-      if (!ALLOWED_TYPES.includes(type)) return null;
+      const rawType = String(comp.type || '').toLowerCase();
+      // Keep the known type for nice labels; otherwise normalise to 'section'
+      // rather than dropping a component the AI legitimately generated (#13).
+      const type = ALLOWED_TYPES.includes(rawType) ? rawType : 'section';
+      const htmlContent = sanitizeHTMLContent(comp.htmlContent || '');
+      // Only drop components that have no renderable HTML at all.
+      if (!htmlContent.trim()) return null;
       return {
         id:          typeof comp.id === 'string' && comp.id.trim() ? comp.id : randomUUID(),
         type,
-        name:        typeof comp.name === 'string' && comp.name.trim() ? comp.name.slice(0, 80) : type,
+        name:        typeof comp.name === 'string' && comp.name.trim() ? comp.name.slice(0, 80) : (rawType || type),
         styles:      comp.styles && typeof comp.styles === 'object' && !Array.isArray(comp.styles) ? comp.styles : {},
-        htmlContent: sanitizeHTMLContent(comp.htmlContent || '')
+        htmlContent
       };
     })
     .filter(Boolean);

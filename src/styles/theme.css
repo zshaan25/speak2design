@@ -179,3 +179,107 @@
     line-height: 1.5;
   }
 }
+
+/* ───────────────── Speak2Design · "Cosmic AI Studio" theme ───────────────── */
+:root {
+  --brand-indigo: #6366f1;
+  --brand-violet: #8b5cf6;
+  --brand-cyan:   #06b6d4;
+  --brand-teal:   #14b8a6;
+  --brand-amber:  #f59e0b;
+  --brand-pink:   #ec4899;
+  --space-900: #020617;
+  --space-800: #0f172a;
+  --space-700: #111827;
+  --glass:        rgba(255, 255, 255, 0.05);
+  --glass-strong: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.10);
+}
+
+@theme {
+  --color-brand-indigo: var(--brand-indigo);
+  --color-brand-violet: var(--brand-violet);
+  --color-brand-cyan:   var(--brand-cyan);
+  --color-brand-teal:   var(--brand-teal);
+  --color-brand-amber:  var(--brand-amber);
+  --color-brand-pink:   var(--brand-pink);
+  --color-space-900: var(--space-900);
+  --color-space-800: var(--space-800);
+  --color-space-700: var(--space-700);
+  --font-display: 'Clash Display', 'Satoshi', sans-serif;
+  --font-sans: 'Satoshi', system-ui, sans-serif;
+}
+
+body {
+  background: var(--space-900);
+  color: #e2e8f0;
+  font-family: 'Satoshi', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Utility helpers used across the redesign */
+.font-display { font-family: 'Clash Display', sans-serif; }
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--glass-border);
+}
+.glass-strong {
+  background: var(--glass-strong);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--glass-border);
+}
+.text-gradient {
+  background: linear-gradient(115deg, #c7d2fe 0%, #8b5cf6 38%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.gradient-border {
+  position: relative;
+  background-clip: padding-box;
+  border: 1px solid transparent;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(139,92,246,.6), rgba(6,182,212,.35), rgba(236,72,153,.4));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  pointer-events: none;
+}
+.glow-indigo { box-shadow: 0 10px 40px -12px rgba(99,102,241,.55); }
+.glow-cyan   { box-shadow: 0 10px 40px -12px rgba(6,182,212,.5); }
+.grain::after {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none; opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Keyframes */
+@keyframes aurora-pan {
+  0%   { transform: translate3d(-8%, -4%, 0) rotate(0deg) scale(1.1); }
+  50%  { transform: translate3d(8%, 4%, 0)   rotate(6deg) scale(1.25); }
+  100% { transform: translate3d(-8%, -4%, 0) rotate(0deg) scale(1.1); }
+}
+@keyframes float-y { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+@keyframes gradient-pan { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+
+.anim-aurora   { animation: aurora-pan 26s ease-in-out infinite; }
+.anim-float    { animation: float-y 6s ease-in-out infinite; }
+.anim-gradient { background-size: 200% 200%; animation: gradient-pan 6s ease infinite; }
+.anim-spin-slow { animation: spin-slow 14s linear infinite; }
+
+/* Dark, glassy scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: rgba(148,163,184,.25); border-radius: 9999px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-aurora, .anim-float, .anim-gradient, .anim-spin-slow { animation: none !important; }
+}

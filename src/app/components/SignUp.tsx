@@ -222,7 +222,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onAuthSuccess }) => {
             </div>
             <GlowBadge><Sparkles className="h-3.5 w-3.5 text-brand-amber" /> Powered by Voice AI</GlowBadge>
             <h1 className="font-display text-4xl font-bold leading-tight mt-6 mb-4">
-              Transform voice into <NeonText>beautiful design</NeonText>
+              Transform Voice Into <NeonText>Beautiful Design</NeonText>
             </h1>
             <p className="text-white/55 text-base leading-relaxed max-w-sm">
               Join designers building stunning interfaces by simply speaking. From idea to live UI, instantly.

@@ -1318,9 +1318,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
     setCommandLog(prev => [entry, ...prev].slice(0, 20)); // keep last 20
   }, []);
 
-  // ── Phase 6: Font Picker ──────────────────────────────────────────────────────
-  const [canvasFont, setCanvasFont] = useState('Inter');
+  // ── Phase 6: Font Picker (persisted #5) ───────────────────────────────────────
+  const [canvasFont, setCanvasFont] = useState(() => {
+    try { return localStorage.getItem('speak2design_canvas_font') || 'Inter'; } catch { return 'Inter'; }
+  });
   const [showFontPicker, setShowFontPicker] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem('speak2design_canvas_font', canvasFont); } catch { /* ignore */ }
+  }, [canvasFont]);
 
   const FONTS = [
     { name: 'Inter',            url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap' },

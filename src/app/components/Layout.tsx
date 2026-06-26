@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Mic, LayoutGrid, ShoppingBag, LogOut, Info, Search, Bell, Star, Trash2, Users, Crown } from 'lucide-react';
+import { Mic, LayoutGrid, ShoppingBag, LogOut, Info, Search, Bell, Star, Trash2, Users, Crown, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../theme/ThemeContext';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -98,6 +99,7 @@ export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string)
 };
 
 export const TopNavbar: React.FC<LayoutProps> = ({ currentPage, onNavigate, user }) => {
+  const { theme, toggleTheme } = useTheme();
   return (
     <nav className="fixed top-0 left-0 right-0 h-16 glass border-b border-white/10 px-6 flex items-center justify-between z-50">
       <div className="flex items-center gap-10">
@@ -113,6 +115,10 @@ export const TopNavbar: React.FC<LayoutProps> = ({ currentPage, onNavigate, user
       </div>
 
       <div className="flex items-center gap-3">
+        <button onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="p-2 text-white/50 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
+          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
         <button className="p-2 text-white/50 hover:text-white hover:bg-white/5 rounded-xl transition-colors relative">
           <Bell className="w-5 h-5" />
           <span className="absolute top-2 right-2 w-2 h-2 bg-brand-pink rounded-full ring-2 ring-[#0b1120]" />

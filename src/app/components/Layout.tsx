@@ -2,6 +2,8 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Mic, LayoutGrid, ShoppingBag, LogOut, Info, Search, Bell, Star, Trash2, Users, Crown, Sun, Moon, Clock, FileText, Archive } from 'lucide-react';
 import { useTheme } from '../theme/ThemeContext';
+import { useLang } from '../i18n/LanguageContext';
+import { Logo } from '../design/Logo';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -18,18 +20,19 @@ const LogoMark: React.FC<{ className?: string }> = ({ className = '' }) => (
 );
 
 export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string) => void; activeView?: string }> = ({ currentPage, onNavigate, activeView = 'all' }) => {
+  const { t } = useLang();
   const mainItems = [
-    { id: 'dashboard', label: 'My Projects', icon: LayoutGrid, view: 'all' },
-    { id: 'recent', label: 'Recent', icon: Clock, view: 'recent' },
-    { id: 'workspace', label: 'Workspace', icon: Mic },
-    { id: 'marketplace', label: 'Marketplace', icon: ShoppingBag },
+    { id: 'dashboard', label: t('myProjects'), icon: LayoutGrid, view: 'all' },
+    { id: 'recent', label: t('recent'), icon: Clock, view: 'recent' },
+    { id: 'workspace', label: t('workspace'), icon: Mic },
+    { id: 'marketplace', label: t('marketplace'), icon: ShoppingBag },
   ];
   const secondaryItems = [
-    { id: 'favorites', label: 'Favorites', icon: Star, view: 'favorites' },
-    { id: 'drafts', label: 'Drafts', icon: FileText, view: 'drafts' },
-    { id: 'shared', label: 'Shared with me', icon: Users, view: 'shared' },
-    { id: 'archived', label: 'Archived', icon: Archive, view: 'archived' },
-    { id: 'trash', label: 'Trash', icon: Trash2, view: 'trash' },
+    { id: 'favorites', label: t('favorites'), icon: Star, view: 'favorites' },
+    { id: 'drafts', label: t('drafts'), icon: FileText, view: 'drafts' },
+    { id: 'shared', label: t('shared'), icon: Users, view: 'shared' },
+    { id: 'archived', label: t('archived'), icon: Archive, view: 'archived' },
+    { id: 'trash', label: t('trash'), icon: Trash2, view: 'trash' },
   ];
 
   // A view item is active only on the dashboard with the matching filter.
@@ -61,12 +64,12 @@ export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string)
     <aside className="w-64 glass border-r border-white/10 flex flex-col fixed left-0 top-16 bottom-0 z-40">
       <div className="flex-1 p-4 space-y-7 overflow-y-auto">
         <div>
-          <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mb-3 ml-4">Main Navigation</p>
+          <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mb-3 ml-4">{t('mainNavigation')}</p>
           <nav className="space-y-1.5">{mainItems.map((item) => renderItem(item, true))}</nav>
         </div>
 
         <div>
-          <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mb-3 ml-4">Workspace</p>
+          <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mb-3 ml-4">{t('workspaceSection')}</p>
           <nav className="space-y-1">{secondaryItems.map((item) => renderItem(item, false))}</nav>
         </div>
 
@@ -75,11 +78,11 @@ export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string)
             style={{ background: 'linear-gradient(150deg, rgba(99,102,241,.3), rgba(139,92,246,.18), rgba(6,182,212,.18))' }}>
             <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-brand-violet/40 blur-2xl" />
             <div className="relative">
-              <p className="text-xs font-bold text-brand-cyan mb-1 flex items-center gap-1.5"><Crown className="w-3.5 h-3.5" /> Pro Plan</p>
-              <p className="text-sm font-bold text-white mb-3">Unlock unlimited voice projects</p>
+              <p className="text-xs font-bold text-brand-cyan mb-1 flex items-center gap-1.5"><Crown className="w-3.5 h-3.5" /> {t('proPlan')}</p>
+              <p className="text-sm font-bold text-white mb-3">{t('unlockUnlimited')}</p>
               <button onClick={() => onNavigate('settings')}
                 className="w-full bg-white text-[#0b1120] py-2 rounded-xl text-xs font-bold hover:bg-white/90 transition-colors">
-                Upgrade Now
+                {t('upgradeNow')}
               </button>
             </div>
           </div>
@@ -89,7 +92,7 @@ export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string)
       <div className="p-4 border-t border-white/10">
         <button onClick={() => onNavigate('logout')}
           className="flex w-full items-center gap-3 px-4 py-3 text-sm font-bold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all">
-          <LogOut className="w-5 h-5" /> <span>Sign Out</span>
+          <LogOut className="w-5 h-5" /> <span>{t('signOut')}</span>
         </button>
       </div>
     </aside>
@@ -98,21 +101,26 @@ export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string)
 
 export const TopNavbar: React.FC<LayoutProps> = ({ currentPage, onNavigate, user }) => {
   const { theme, toggleTheme } = useTheme();
+  const { lang, toggleLang, t } = useLang();
   return (
     <nav className="fixed top-0 left-0 right-0 h-16 glass border-b border-white/10 px-6 flex items-center justify-between z-50">
       <div className="flex items-center gap-10">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => onNavigate('dashboard')}>
-          <LogoMark className="w-9 h-9" />
+          <Logo className="w-9 h-9" />
           <span className="font-display font-bold text-xl text-white tracking-tight">Speak2Design</span>
         </div>
         <div className="hidden md:flex items-center glass rounded-xl px-4 py-2 w-80 focus-within:border-white/25 transition-colors">
           <Search className="w-4 h-4 text-white/40 mr-2" />
-          <input type="text" placeholder="Search everything…"
+          <input type="text" placeholder={t('searchEverything')}
             className="bg-transparent border-none text-sm text-white placeholder-white/30 outline-none w-full" />
         </div>
       </div>
 
       <div className="flex items-center gap-3">
+        <button onClick={toggleLang} title="Switch language / زبان تبدیل کریں"
+          className="px-2.5 py-1.5 text-xs font-bold text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+          {lang === 'en' ? 'EN' : 'اردو'}
+        </button>
         <button onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           className="p-2 text-white/50 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
           {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -128,7 +136,7 @@ export const TopNavbar: React.FC<LayoutProps> = ({ currentPage, onNavigate, user
           }`}>
           <div className="text-right hidden sm:block">
             <p className="text-sm font-bold text-white leading-none">{user.name}</p>
-            <p className="text-[10px] font-bold text-brand-cyan uppercase mt-0.5">{user.tier === 'premium' ? 'Premium' : 'Free Account'}</p>
+            <p className="text-[10px] font-bold text-brand-cyan uppercase mt-0.5">{user.tier === 'premium' ? t('premium') : t('freeAccount')}</p>
           </div>
           <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm text-white ring-2 ring-white/10 anim-gradient"
             style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6)' }}>

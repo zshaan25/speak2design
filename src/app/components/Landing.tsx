@@ -7,6 +7,7 @@ import { GradientButton } from '../design/GradientButton';
 import { GlassCard } from '../design/GlassCard';
 import { VoiceWave } from '../design/VoiceWave';
 import { NeonText, GlowBadge } from '../design/NeonText';
+import { Logo } from '../design/Logo';
 
 interface LandingProps {
   onGetStarted: () => void;
@@ -31,10 +32,7 @@ export const Landing: React.FC<LandingProps> = ({ onGetStarted, onExplore }) => 
       {/* Nav */}
       <header className="relative z-20 mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-2.5">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl anim-gradient"
-            style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }}>
-            <Mic className="h-5 w-5 text-white" />
-          </div>
+          <Logo className="h-10 w-10" />
           <span className="font-display text-xl font-bold tracking-tight">Speak2Design</span>
         </div>
         <div className="flex items-center gap-3">

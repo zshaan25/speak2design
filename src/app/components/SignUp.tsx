@@ -6,6 +6,7 @@ import { GlassCard } from '../design/GlassCard';
 import { GradientButton } from '../design/GradientButton';
 import { VoiceWave } from '../design/VoiceWave';
 import { NeonText, GlowBadge } from '../design/NeonText';
+import { Logo } from '../design/Logo';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:5000';
 const inputCls = 'w-full pl-11 pr-4 py-3 bg-white/[0.04] border border-white/10 rounded-xl text-white placeholder-white/30 focus:ring-2 focus:ring-brand-violet/60 focus:border-transparent outline-none transition-all';
@@ -216,9 +217,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onAuthSuccess }) => {
           style={{ background: 'linear-gradient(160deg, rgba(99,102,241,.22), rgba(139,92,246,.12) 45%, rgba(6,182,212,.14))' }}>
           <div className="relative z-10">
             <div className="flex items-center gap-2.5 mb-10">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl anim-gradient" style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }}>
-                <Mic className="h-5 w-5 text-white" />
-              </div>
+              <Logo className="h-10 w-10" />
               <span className="font-display text-xl font-bold">Speak2Design</span>
             </div>
             <GlowBadge><Sparkles className="h-3.5 w-3.5 text-brand-amber" /> Powered by Voice AI</GlowBadge>

@@ -102,6 +102,26 @@ export default function App() {
     }
   }, []);
 
+  // #11: auto-logout when the API rejects an expired/invalid token (401).
+  useEffect(() => {
+    const orig = window.fetch;
+    window.fetch = async (...args: Parameters<typeof fetch>) => {
+      const res = await orig(...args);
+      try {
+        const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
+        const isApi = url.includes(API_BASE) || url.startsWith('/api');
+        const isAuthAttempt = /\/(login|register|forgot-password|reset-password)/.test(url);
+        if (res.status === 401 && isApi && !isAuthAttempt && localStorage.getItem('speak2design_token')) {
+          localStorage.removeItem('speak2design_token');
+          setAuthToken(null); setUser(null); setCurrentPage('landing');
+          toast.error('Your session has expired. Please sign in again.');
+        }
+      } catch { /* ignore */ }
+      return res;
+    };
+    return () => { window.fetch = orig; };
+  }, []);
+
   useEffect(() => {
     const bootstrapSession = async () => {
       // A password-reset link (?reset=token) must always land on the auth screen

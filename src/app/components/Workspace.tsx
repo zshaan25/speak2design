@@ -807,20 +807,25 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
 
     setClarificationMessage(null);
 
-    if (data.updatedCanvas && Array.isArray(data.updatedCanvas)) {
+    if (data.updatedCanvas && Array.isArray(data.updatedCanvas) && data.updatedCanvas.length > 0) {
       pushNewStateToHistory(data.updatedCanvas);
       // Log to command history
       if (logCtx) {
         addCommandLog(logCtx.type, logCtx.command, data.updatedCanvas.length);
       }
+      // Scroll canvas to top so user sees the rendered output
+      canvasAreaRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       // FR_06: notify when the latest command overrode an existing component.
       if (data.overrideNotice) {
         toast.warning(data.overrideNotice, { duration: 5000 });
         speakTTS(data.overrideNotice);
       } else {
-        toast.success('Canvas updated!');
+        toast.success(`Canvas updated — ${data.updatedCanvas.length} component${data.updatedCanvas.length > 1 ? 's' : ''} rendered. Check the preview below!`, { duration: 4000 });
         if (data.ttsConfirmation) speakTTS(data.ttsConfirmation);
       }
+    } else if (data.updatedCanvas && Array.isArray(data.updatedCanvas) && data.updatedCanvas.length === 0) {
+      pushNewStateToHistory([]);
+      toast.info('Canvas cleared.');
     }
   };
 
@@ -1904,9 +1909,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             transition: 'transform 0.15s ease',
             fontFamily: canvasFont === 'Inter' ? undefined : `'${canvasFont}', sans-serif`,
           }}>
-          <div className="w-full min-h-[600px] bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-gray-800 flex flex-col">
+          <div className="w-full min-h-[600px] bg-white rounded-2xl shadow-2xl relative border border-gray-800 flex flex-col">
             <div className="absolute inset-0 opacity-[0.02] pointer-events-none"
               style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+            {canvasState.length > 0 && (
+              <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm border border-green-200 rounded-full px-3 py-1 shadow-sm pointer-events-none">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-[11px] font-bold text-green-700">Live Preview</span>
+              </div>
+            )}
 
             {canvasState.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center p-12">

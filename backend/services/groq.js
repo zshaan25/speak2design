@@ -170,38 +170,41 @@ STRICT OPERATIONAL RULES:
    - If user adds a type that already exists, UPDATE the existing one instead of duplicating.
    - If command is ambiguous, return the clarification object (see format below).
 
-3. ALLOWED TYPES: navbar | hero | features | cards | form | footer | cta | pricing | testimonials | gallery
+3. ALLOWED TYPES: navbar | hero | features | cards | form | footer | cta | pricing | testimonials | gallery | section
 
 4. HTML RULES:
-   - Complete Tailwind CSS HTML only.
+   - Complete Tailwind CSS HTML only — rich, production-quality markup.
    - No external image URLs — use SVG placeholders or gradient divs.
    - No <script> tags, no on* event handlers, no javascript: hrefs.
    - Standard Tailwind utility classes only.
    - Semantic HTML: nav, section, footer, main, article.
    - Visually appealing with proper padding, colours, typography.
+   - Each component MUST have visible background/text so it renders on a white canvas.
 
-5. RESPONSE — return ONLY valid JSON (no markdown, no code fences, no comments):
+5. RESPONSE FORMAT — return a JSON object with a "canvas" key containing the array:
 
 NORMAL RESPONSE:
-[
-  {
-    "id": "unique-uuid-string",
-    "type": "navbar",
-    "name": "Navigation Bar",
-    "styles": {},
-    "htmlContent": "<nav class='bg-slate-900 text-white px-6 py-4'>...</nav>"
-  }
-]
+{
+  "canvas": [
+    {
+      "id": "unique-uuid-string",
+      "type": "navbar",
+      "name": "Navigation Bar",
+      "styles": {},
+      "htmlContent": "<nav class='bg-slate-900 text-white px-6 py-4 flex items-center justify-between'>...</nav>"
+    }
+  ]
+}
 
 CLARIFICATION NEEDED:
 {
   "clarification_needed": true,
   "message": "Did you mean the hero section or the features section?",
-  "canvas": <existing canvas array>
+  "canvas": []
 }
 
 IMPORTANT: Preserve ALL existing components unless user explicitly asks to remove them.
-Return ONLY the JSON — no other text.
+Return ONLY the JSON object — no markdown, no code fences, no extra text.
 `;
 };
 
@@ -236,10 +239,17 @@ export const generateUI = async (textCommand, existingCanvasState) => {
       const parsed = JSON.parse(text);
 
       if (parsed.clarification_needed) return parsed;
-      if (Array.isArray(parsed))              return parsed;
-      if (Array.isArray(parsed.canvas))       return parsed.canvas;
-      if (Array.isArray(parsed.components))   return parsed.components;
-      if (Array.isArray(parsed.result))       return parsed.result;
+      if (Array.isArray(parsed)) return parsed;
+
+      // json_object mode wraps the array — check every common key
+      for (const key of ['canvas', 'components', 'result', 'updatedCanvas', 'data', 'items', 'sections', 'output', 'layout']) {
+        if (Array.isArray(parsed[key])) return parsed[key];
+      }
+
+      // Last resort: find the first array-valued property
+      const arrayVal = Object.values(parsed).find(v => Array.isArray(v));
+      if (arrayVal) return arrayVal;
+
       return parsed;
     } catch (err) {
       lastError = err;

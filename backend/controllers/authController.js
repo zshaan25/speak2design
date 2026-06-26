@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { sendPasswordResetEmail, isMailConfigured } from '../utils/mailer.js';
+import { createUpgradeCheckoutSession, retrieveCheckoutSession } from '../services/stripe.js';
 
 const hashToken = (raw) => crypto.createHash('sha256').update(raw).digest('hex');
 
@@ -357,5 +358,62 @@ export const upgradeToPremium = async (req, res) => {
   } catch (err) {
     console.error('>>> Upgrade error:', err);
     return res.status(500).json({ success: false, message: 'Upgrade failed.' });
+  }
+};
+
+// ─── Premium upgrade via Stripe (#9/#12) ──────────────────────────────────────
+const PREMIUM_PRICE_CENTS = 999; // $9.99
+
+// POST /api/auth/upgrade/checkout — start a Stripe Checkout for Premium.
+// Returns { simulated:true } when Stripe isn't configured so the client can fall
+// back to the one-click /api/auth/upgrade route.
+export const upgradeCheckout = async (req, res) => {
+  try {
+    if ((req.user.tier || req.user.role) === 'premium') {
+      return res.status(200).json({ success: true, alreadyPremium: true });
+    }
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(200).json({ success: true, simulated: true });
+    }
+    const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const { url, sessionId } = await createUpgradeCheckoutSession({
+      userId:       req.user._id.toString(),
+      email:        req.user.email,
+      priceInCents: PREMIUM_PRICE_CENTS,
+      successUrl:   `${base}/?upgrade=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl:    `${base}/?upgrade=cancelled`,
+    });
+    return res.status(200).json({ success: true, url, sessionId });
+  } catch (err) {
+    console.error('>>> upgradeCheckout error:', err);
+    return res.status(500).json({ success: false, message: 'Could not start the upgrade.' });
+  }
+};
+
+// POST /api/auth/upgrade/confirm — verify a paid session and grant Premium.
+// Lets the upgrade work without a configured webhook (dev/demo).
+export const confirmUpgrade = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ success: false, message: 'sessionId is required.' });
+    if (!process.env.STRIPE_SECRET_KEY) return res.status(400).json({ success: false, message: 'Stripe is not configured.' });
+
+    const session = await retrieveCheckoutSession(sessionId);
+    if (session.payment_status !== 'paid' || session.metadata?.type !== 'premium_upgrade') {
+      return res.status(400).json({ success: false, message: 'Payment not completed.' });
+    }
+    if (session.metadata.userId !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'This payment is for a different account.' });
+    }
+
+    const user = await User.findByIdAndUpdate(req.user._id, { tier: 'premium' }, { new: true }).select('-password');
+    return res.status(200).json({
+      success: true,
+      message: 'Welcome to Premium!',
+      user: { id: user._id, name: user.name, email: user.email, tier: user.tier, usageCount: user.usageCount, avatar: user.name.split(' ').map(n => n[0]).join('').toUpperCase() }
+    });
+  } catch (err) {
+    console.error('>>> confirmUpgrade error:', err);
+    return res.status(500).json({ success: false, message: 'Could not confirm the upgrade.' });
   }
 };

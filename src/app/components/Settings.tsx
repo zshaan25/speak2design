@@ -568,15 +568,19 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
     setIsUpgrading(true);
     try {
       const token = localStorage.getItem('speak2design_token');
-      const res = await fetch(`${API_BASE}/api/auth/upgrade`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+      // Try Stripe checkout first; fall back to one-click if Stripe isn't configured.
+      const co = await fetch(`${API_BASE}/api/auth/upgrade/checkout`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }
       });
+      const coData = await co.json();
+      if (coData.url) { window.location.href = coData.url; return; }
+      if (coData.alreadyPremium) { toast.info('You are already on Premium!'); return; }
+      // Simulated (no Stripe key) → one-click upgrade.
+      const res = await fetch(`${API_BASE}/api/auth/upgrade`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) {
         toast.success('Upgraded to Premium! Unlimited voice commands unlocked.');
-        const updated = { ...currentUser, tier: 'premium' };
-        setCurrentUser(updated);
+        setCurrentUser({ ...currentUser, tier: 'premium' });
         if (onUserUpdate) onUserUpdate(data.user);
       } else {
         toast.error(data.message || 'Upgrade failed.');

@@ -5,6 +5,8 @@ import {
   getUserContextData,
   updateUserProfile,
   upgradeToPremium,
+  upgradeCheckout,
+  confirmUpgrade,
   forgotPassword,
   resetPassword,
   deactivateAccount,
@@ -26,6 +28,8 @@ router.get('/oauth/:provider/callback', oauthCallback);
 router.get('/profile', requireAuthentication, getUserContextData);
 router.put('/profile', requireAuthentication, updateUserProfile);
 router.post('/upgrade', requireAuthentication, upgradeToPremium);
+router.post('/upgrade/checkout', requireAuthentication, upgradeCheckout);
+router.post('/upgrade/confirm', requireAuthentication, confirmUpgrade);
 router.put('/deactivate', requireAuthentication, deactivateAccount);
 router.delete('/account', requireAuthentication, deleteAccount);
 

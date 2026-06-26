@@ -48,18 +48,33 @@ export default function App() {
     const oauthToken = params.get('token');
     const oauthError = params.get('oauth_error');
     const purchaseResult = params.get('purchase');
+    const upgradeResult = params.get('upgrade');
+    const upgradeSession = params.get('session_id');
 
     // Strip all handled query params from the URL before doing anything else.
-    if (oauthToken || oauthError || purchaseResult) {
+    if (oauthToken || oauthError || purchaseResult || upgradeResult) {
       const url = new URL(window.location.href);
-      url.searchParams.delete('token');
-      url.searchParams.delete('oauth');
-      url.searchParams.delete('oauth_error');
-      url.searchParams.delete('provider');
-      url.searchParams.delete('purchase');
-      url.searchParams.delete('templateId');
-      url.searchParams.delete('purchase_cancelled');
+      ['token','oauth','oauth_error','provider','purchase','templateId','purchase_cancelled','upgrade','session_id']
+        .forEach(k => url.searchParams.delete(k));
       window.history.replaceState({}, '', url.toString());
+    }
+
+    // Stripe premium-upgrade return — confirm the session server-side (#9/#12).
+    if (upgradeResult === 'success' && upgradeSession) {
+      (async () => {
+        try {
+          const token = localStorage.getItem('speak2design_token');
+          const res = await fetch(`${API_BASE}/api/auth/upgrade/confirm`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ sessionId: upgradeSession })
+          });
+          const data = await res.json();
+          if (data.success) { setUser((p: any) => p ? { ...p, tier: 'premium' } : p); toast.success('🎉 Welcome to Premium!'); }
+          else toast.error(data.message || 'Could not confirm the upgrade.');
+        } catch { toast.error('Could not confirm the upgrade.'); }
+      })();
+    } else if (upgradeResult === 'cancelled') {
+      toast.info('Upgrade cancelled. Your card was not charged.');
     }
 
     if (oauthError) {
@@ -208,7 +223,7 @@ export default function App() {
       case 'workspace':
         return <Workspace projectId={selectedProjectId} onBack={() => setCurrentPage('dashboard')} />;
       case 'marketplace':
-        return <Marketplace onCheckout={handleCheckout} onBack={() => setCurrentPage('dashboard')} />;
+        return <Marketplace onCheckout={handleCheckout} onBack={() => setCurrentPage('dashboard')} onOpenProject={handleSelectProject} />;
       case 'checkout':
         return <Checkout template={selectedTemplate} onConfirm={handleConfirmPurchase} onBack={() => setCurrentPage('marketplace')} />;
       case 'settings':

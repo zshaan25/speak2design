@@ -223,6 +223,16 @@ export const webhookHandler = async (req, res) => {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+
+    // Premium upgrade fulfillment (#9/#12)
+    if (session.metadata?.type === 'premium_upgrade' && session.metadata?.userId) {
+      try {
+        await User.findByIdAndUpdate(session.metadata.userId, { tier: 'premium' });
+        console.log(`[Webhook] Premium granted to user ${session.metadata.userId}`);
+      } catch (e) { console.error('>>> Premium webhook error:', e.message); }
+      return res.status(200).json({ received: true });
+    }
+
     const templateId = session.metadata?.templateId;
     const buyerEmail = session.customer_details?.email;
 
@@ -317,6 +327,33 @@ export const unpublishTemplate = async (req, res) => {
   } catch (err) {
     console.error('>>> Unpublish error:', err);
     return res.status(500).json({ success: false, message: 'Failed to unpublish template.' });
+  }
+};
+
+// ─── POST /api/marketplace/:id/use — open a template as an editable project (#14)
+export const createProjectFromTemplate = async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id);
+    if (!template || !template.isActive) {
+      return res.status(404).json({ success: false, message: 'Template not found.' });
+    }
+    // Premium-only templates require a premium buyer/owner.
+    if (template.isPremiumOnly && (req.user.tier || req.user.role) !== 'premium') {
+      const owns = (req.user.ownedTemplates || []).some(id => id.toString() === template._id.toString());
+      if (!owns) return res.status(403).json({ success: false, premiumRequired: true, message: 'This is a Premium template. Upgrade or purchase it first.' });
+    }
+
+    const project = await Project.create({
+      user:        req.user._id,
+      title:       `${template.title} (copy)`,
+      language:    ['English', 'Urdu'].includes(template.lang) ? template.lang : 'English',
+      canvasState: Array.isArray(template.canvasSnapshot) ? template.canvasSnapshot : [],
+    });
+
+    return res.status(201).json({ success: true, project });
+  } catch (err) {
+    console.error('>>> Use template error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to open template.' });
   }
 };
 

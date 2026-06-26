@@ -9,6 +9,7 @@ import {
   webhookHandler,
   unpublishTemplate,
   reseedTemplates,
+  createProjectFromTemplate,
 } from '../controllers/marketplaceController.js';
 
 const router = express.Router();
@@ -30,6 +31,7 @@ router.delete('/unpublish/:id',   requireAuthentication, unpublishTemplate);
 // ─── Buyer actions ────────────────────────────────────────────────────────────
 router.post('/checkout/:id',      requireAuthentication, createCheckoutSessionHandler);
 router.post('/purchase/:id',      requireAuthentication, purchaseTemplate);
+router.post('/:id/use',           requireAuthentication, createProjectFromTemplate);
 router.get('/library',            requireAuthentication, getMyLibrary);
 
 export default router;

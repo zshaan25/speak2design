@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Filter, ShoppingCart, Star, Globe, Upload, Tag, DollarSign, ArrowLeft, Loader2, Package, Crown, Lock, Trash2 } from 'lucide-react';
+import { Search, Filter, ShoppingCart, Star, Globe, Upload, Tag, DollarSign, ArrowLeft, Loader2, Package, Crown, Lock, Trash2, Edit3 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { GlassCard } from '../design/GlassCard';
@@ -22,9 +22,10 @@ const previewSrc = (t: any): string =>
 interface MarketplaceProps {
   onCheckout: (template: any) => void;
   onBack: () => void;
+  onOpenProject?: (projectId: string) => void;
 }
 
-export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack }) => {
+export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, onOpenProject }) => {
   const [view, setView] = useState<'buy' | 'sell'>('buy');
   const [currency, setCurrency] = useState<'PKR' | 'USD'>('PKR');
   const [templates, setTemplates] = useState<any[]>([]);
@@ -50,6 +51,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack }) 
     setIsUpgrading(true);
     try {
       const token = localStorage.getItem('speak2design_token');
+      const co = await fetch(`${API_BASE}/api/auth/upgrade/checkout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const coData = await co.json();
+      if (coData.url) { window.location.href = coData.url; return; }
+      if (coData.alreadyPremium) { setUserTier('premium'); return; }
       const res = await fetch(`${API_BASE}/api/auth/upgrade`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) { setUserTier('premium'); toast.success('Upgraded to Premium! You can now publish templates.'); }
@@ -113,6 +118,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack }) 
   };
 
   useEffect(() => { fetchTemplates(); loadTier(); fetchMyTemplates(); }, []);
+
+  const [usingId, setUsingId] = useState<string | null>(null);
+  // Open a template as an editable project (#14).
+  const handleUseTemplate = async (tpl: any) => {
+    const id = tpl._id || tpl.id;
+    setUsingId(id);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/marketplace/${id}/use`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success && data.project?._id) { onOpenProject?.(data.project._id); }
+      else if (data.premiumRequired) { toast.error(data.message || 'Premium template — upgrade to edit.'); }
+      else { toast.error(data.message || 'Could not open template.'); }
+    } catch { toast.error('Connection error.'); }
+    finally { setUsingId(null); }
+  };
 
   const formatPrice = (price: number) => {
     if (currency === 'USD') return `$${(price / 280).toFixed(2)}`;
@@ -273,9 +294,23 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack }) 
                         <p className="text-2xl font-black text-white">{formatPrice(tpl.price)}</p>
                         <p className="text-[10px] text-white/35 font-bold uppercase tracking-widest">{tpl.sales || 0} sales</p>
                       </div>
-                      <GradientButton onClick={() => onCheckout(tpl)} className="!px-5 !py-2.5">
-                        <ShoppingCart className="w-4 h-4" /> Buy Now
-                      </GradientButton>
+                      <div className="flex items-center gap-2">
+                        {(!tpl.price || tpl.price === 0) ? (
+                          <GradientButton onClick={() => handleUseTemplate(tpl)} disabled={usingId === (tpl._id || tpl.id)} className="!px-5 !py-2.5">
+                            {usingId === (tpl._id || tpl.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />} Use & Edit
+                          </GradientButton>
+                        ) : (
+                          <>
+                            <button onClick={() => handleUseTemplate(tpl)} disabled={usingId === (tpl._id || tpl.id)}
+                              title="Open as editable project" className="p-2.5 glass rounded-xl text-white/80 hover:text-white hover:border-white/25 transition-all">
+                              {usingId === (tpl._id || tpl.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />}
+                            </button>
+                            <GradientButton onClick={() => onCheckout(tpl)} className="!px-5 !py-2.5">
+                              <ShoppingCart className="w-4 h-4" /> Buy
+                            </GradientButton>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </GlassCard>

@@ -76,6 +76,32 @@ export const createCheckoutSession = async ({
 };
 
 /**
+ * createUpgradeCheckoutSession — Checkout Session for upgrading a user to Premium.
+ */
+export const createUpgradeCheckoutSession = async ({ userId, email, priceInCents, successUrl, cancelUrl }) => {
+  const stripe = getStripeClient();
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    payment_method_types: ['card'],
+    line_items: [{
+      price_data: { currency: 'usd', unit_amount: priceInCents, product_data: { name: 'Speak2Design Premium' } },
+      quantity: 1,
+    }],
+    metadata: { type: 'premium_upgrade', userId, platform: 'speak2design' },
+    ...(email ? { customer_email: email } : {}),
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+  });
+  return { url: session.url, sessionId: session.id };
+};
+
+/** retrieveCheckoutSession — fetch a session to confirm payment without a webhook. */
+export const retrieveCheckoutSession = async (sessionId) => {
+  const stripe = getStripeClient();
+  return stripe.checkout.sessions.retrieve(sessionId);
+};
+
+/**
  * createStripeProduct — creates a Stripe Product + Price for a new template listing.
  * Call this when a seller publishes a premium template.
  *

@@ -770,10 +770,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
     setIsUpgrading(true);
     try {
       const token = localStorage.getItem('speak2design_token');
-      const res = await fetch(`${API_BASE}/api/auth/upgrade`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const co = await fetch(`${API_BASE}/api/auth/upgrade/checkout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const coData = await co.json();
+      if (coData.url) { window.location.href = coData.url; return; }
+      if (coData.alreadyPremium) { setUserTier('premium'); return; }
+      const res = await fetch(`${API_BASE}/api/auth/upgrade`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) {
         setUserTier('premium');

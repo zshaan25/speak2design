@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Mic, LayoutGrid, ShoppingBag, LogOut, Info, Search, Bell, Star, Trash2, Users, Crown, Sun, Moon } from 'lucide-react';
+import { Mic, LayoutGrid, ShoppingBag, LogOut, Info, Search, Bell, Star, Trash2, Users, Crown, Sun, Moon, Clock, FileText, Archive } from 'lucide-react';
 import { useTheme } from '../theme/ThemeContext';
 
 interface LayoutProps {
@@ -17,59 +17,57 @@ const LogoMark: React.FC<{ className?: string }> = ({ className = '' }) => (
   </div>
 );
 
-export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string) => void }> = ({ currentPage, onNavigate }) => {
+export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string) => void; activeView?: string }> = ({ currentPage, onNavigate, activeView = 'all' }) => {
   const mainItems = [
-    { id: 'dashboard', label: 'My Projects', icon: LayoutGrid },
+    { id: 'dashboard', label: 'My Projects', icon: LayoutGrid, view: 'all' },
+    { id: 'recent', label: 'Recent', icon: Clock, view: 'recent' },
     { id: 'workspace', label: 'Workspace', icon: Mic },
     { id: 'marketplace', label: 'Marketplace', icon: ShoppingBag },
   ];
   const secondaryItems = [
-    { id: 'shared', label: 'Shared with me', icon: Users },
-    { id: 'favorites', label: 'Favorites', icon: Star },
-    { id: 'trash', label: 'Trash', icon: Trash2 },
+    { id: 'favorites', label: 'Favorites', icon: Star, view: 'favorites' },
+    { id: 'drafts', label: 'Drafts', icon: FileText, view: 'drafts' },
+    { id: 'shared', label: 'Shared with me', icon: Users, view: 'shared' },
+    { id: 'archived', label: 'Archived', icon: Archive, view: 'archived' },
+    { id: 'trash', label: 'Trash', icon: Trash2, view: 'trash' },
   ];
+
+  // A view item is active only on the dashboard with the matching filter.
+  const isActive = (item: { id: string; view?: string }) =>
+    item.view ? currentPage === 'dashboard' && activeView === item.view : currentPage === item.id;
+
+  const renderItem = (item: any, bold = true) => {
+    const active = isActive(item);
+    return (
+      <motion.button
+        key={item.id}
+        onClick={() => onNavigate(item.id)}
+        whileHover={{ x: 3 }}
+        className={`group relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm ${bold ? 'font-bold' : 'font-medium'} ${
+          active ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/5'
+        }`}
+      >
+        {active && (
+          <span className="absolute inset-0 rounded-xl gradient-border glow-indigo"
+            style={{ background: 'linear-gradient(120deg, rgba(99,102,241,.25), rgba(6,182,212,.18))' }} />
+        )}
+        <item.icon className={`relative z-10 w-5 h-5 transition-transform group-hover:scale-110 ${active ? 'text-brand-cyan' : ''}`} />
+        <span className="relative z-10">{item.label}</span>
+      </motion.button>
+    );
+  };
 
   return (
     <aside className="w-64 glass border-r border-white/10 flex flex-col fixed left-0 top-16 bottom-0 z-40">
       <div className="flex-1 p-4 space-y-7 overflow-y-auto">
         <div>
           <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mb-3 ml-4">Main Navigation</p>
-          <nav className="space-y-1.5">
-            {mainItems.map((item) => {
-              const active = currentPage === item.id;
-              return (
-                <motion.button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  whileHover={{ x: 3 }}
-                  className={`group relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${
-                    active ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {active && (
-                    <motion.span layoutId="sidebar-active"
-                      className="absolute inset-0 rounded-xl gradient-border glow-indigo"
-                      style={{ background: 'linear-gradient(120deg, rgba(99,102,241,.25), rgba(6,182,212,.18))' }} />
-                  )}
-                  <item.icon className={`relative z-10 w-5 h-5 transition-transform group-hover:scale-110 ${active ? 'text-brand-cyan' : ''}`} />
-                  <span className="relative z-10">{item.label}</span>
-                </motion.button>
-              );
-            })}
-          </nav>
+          <nav className="space-y-1.5">{mainItems.map((item) => renderItem(item, true))}</nav>
         </div>
 
         <div>
           <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mb-3 ml-4">Workspace</p>
-          <nav className="space-y-1">
-            {secondaryItems.map((item) => (
-              <button key={item.id}
-                className="group w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium text-white/45 hover:text-white hover:bg-white/5">
-                <item.icon className="w-5 h-5 transition-transform group-hover:scale-110" />
-                {item.label}
-              </button>
-            ))}
-          </nav>
+          <nav className="space-y-1">{secondaryItems.map((item) => renderItem(item, false))}</nav>
         </div>
 
         <div className="px-1">

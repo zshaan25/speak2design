@@ -47,6 +47,10 @@ const projectSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // ─── Organisation flags (#16 sidebar views) ─────────────────────────────────
+  isFavorite: { type: Boolean, default: false },
+  isArchived: { type: Boolean, default: false },
+  deletedAt:  { type: Date, default: null },  // soft-delete → Trash
   shareToken: {
     type: String,
     default: null,

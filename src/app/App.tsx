@@ -26,6 +26,7 @@ export default function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
   const [publicShareToken, setPublicShareToken] = useState<string | null>(null);
+  const [dashboardFilter, setDashboardFilter] = useState<string>('all');
 
   // ── Detect /view/:token share links before anything else ──────────────────
   // The app uses a state-machine router without React Router, so we intercept
@@ -126,8 +127,19 @@ export default function App() {
     setUser(userData); setAuthToken(token); setCurrentPage('dashboard');
   };
 
+  // Sidebar "view" items map to the dashboard with a server-side filter (#16).
+  const VIEW_FILTERS: Record<string, string> = {
+    dashboard: 'all', recent: 'recent', favorites: 'favorites',
+    shared: 'shared', drafts: 'drafts', archived: 'archived', trash: 'trash',
+  };
+
   const handleNavigate = (page: string) => {
     if (page === 'logout') { clearUserSession(); toast.info('Logged out securely.'); return; }
+    if (page in VIEW_FILTERS) {
+      setDashboardFilter(VIEW_FILTERS[page]);
+      setCurrentPage('dashboard');
+      return;
+    }
     setCurrentPage(page as Page);
   };
 
@@ -189,6 +201,8 @@ export default function App() {
             onNewProject={handleNewProject}
             onSelectProject={handleSelectProject}
             showSuccess={showPurchaseSuccess}
+            filter={dashboardFilter}
+            onNavigate={handleNavigate}
           />
         );
       case 'workspace':
@@ -249,7 +263,7 @@ export default function App() {
       {showTopNav && (
         <TopNavbar currentPage={currentPage} onNavigate={handleNavigate} user={user} />
       )}
-      {showSidebar && <Sidebar currentPage={currentPage} onNavigate={handleNavigate} />}
+      {showSidebar && <Sidebar currentPage={currentPage} onNavigate={handleNavigate} activeView={dashboardFilter} />}
       <main className={`${showSidebar ? 'pl-64' : ''}`}>
         <AnimatePresence mode="wait">
           <motion.div

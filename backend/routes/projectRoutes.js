@@ -11,6 +11,9 @@ import {
   regenerateShareToken,
   getPublicProject,
   uploadThumbnail,
+  toggleFavorite,
+  toggleArchive,
+  restoreProject,
 } from '../controllers/projectController.js';
 
 // Memory storage for thumbnail uploads (PNG, max 5MB)
@@ -40,6 +43,11 @@ router.get('/', requireAuthentication, getUserProjects);
 router.get('/:id', requireAuthentication, getProjectById);
 router.put('/:id', requireAuthentication, updateProjectCanvas);
 router.delete('/:id', requireAuthentication, deleteProject);
+
+// Organisation actions (#16)
+router.patch('/:id/favorite', requireAuthentication, toggleFavorite);
+router.patch('/:id/archive',  requireAuthentication, toggleArchive);
+router.post('/:id/restore',   requireAuthentication, restoreProject);
 
 // Share — toggle public/private, regenerate token
 router.post('/:id/share', requireAuthentication, shareProject);

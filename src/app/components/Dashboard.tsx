@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, Clock, Globe, Trash2, CheckCircle2, FolderOpen, Mic, LayoutTemplate, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Clock, Globe, Trash2, CheckCircle2, FolderOpen, Mic, LayoutTemplate, ShoppingBag, Star, RotateCcw } from 'lucide-react';
 import { GlassCard } from '../design/GlassCard';
 import { GradientButton } from '../design/GradientButton';
 
@@ -10,7 +10,19 @@ interface DashboardProps {
   onNewProject: () => void;
   onSelectProject: (id: string) => void;
   showSuccess?: boolean;
+  filter?: string;
+  onNavigate?: (page: string) => void;
 }
+
+const VIEW_TITLES: Record<string, { title: string; sub: string }> = {
+  all:       { title: 'My Projects',     sub: 'All your designs' },
+  recent:    { title: 'Recent',          sub: 'Recently updated' },
+  favorites: { title: 'Favorites',       sub: 'Starred projects' },
+  drafts:    { title: 'Drafts',          sub: 'Empty / unfinished projects' },
+  shared:    { title: 'Shared with me',  sub: 'Publicly shared designs' },
+  archived:  { title: 'Archived',        sub: 'Archived projects' },
+  trash:     { title: 'Trash',           sub: 'Deleted projects — restore or remove forever' },
+};
 
 const PROJECT_COLORS = [
   'from-blue-500 to-indigo-600',
@@ -23,7 +35,9 @@ const PROJECT_COLORS = [
   'from-amber-400 to-orange-500',
 ];
 
-export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProject, showSuccess }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProject, showSuccess, filter = 'all', onNavigate }) => {
+  const view = VIEW_TITLES[filter] || VIEW_TITLES.all;
+  const isTrash = filter === 'trash';
   const [visibleSuccess, setVisibleSuccess] = useState(showSuccess);
   const [projects, setProjects] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -47,23 +61,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      if (data.success) {
-        // recentDesigns is the last 5; fall back to fetching all projects for display.
-        setStats(data.stats);
-        // Fetch full project list for grid (dashboard returns only last 5).
-        const projRes = await fetch(`${API_BASE}/api/projects`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const projData = await projRes.json();
-        if (projData.success) setProjects(projData.projects);
-      } else {
-        // Fallback: plain projects fetch.
-        const projRes = await fetch(`${API_BASE}/api/projects`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const projData = await projRes.json();
-        if (projData.success) setProjects(projData.projects);
-      }
+      if (data.success) setStats(data.stats);
+      const projRes = await fetch(`${API_BASE}/api/projects?filter=${filter}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const projData = await projRes.json();
+      if (projData.success) setProjects(projData.projects);
     } catch (err) {
       console.error('Failed to fetch dashboard:', err);
     } finally {
@@ -71,20 +74,48 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
     }
   };
 
-  useEffect(() => { fetchProjects(); }, []);
+  useEffect(() => { fetchProjects(); /* eslint-disable-next-line */ }, [filter]);
 
+  const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('speak2design_token')}` });
+
+  // Delete = move to Trash (or permanently delete when already in Trash).
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm('Delete this project? This cannot be undone.')) return;
+    const permanent = isTrash;
+    if (!confirm(permanent ? 'Permanently delete this project? This cannot be undone.' : 'Move this project to Trash?')) return;
     try {
-      const token = localStorage.getItem('speak2design_token');
-      const res = await fetch(`${API_BASE}/api/projects/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${API_BASE}/api/projects/${id}${permanent ? '?permanent=true' : ''}`, {
+        method: 'DELETE', headers: authHeaders()
       });
       const data = await res.json();
       if (data.success) setProjects(prev => prev.filter(p => p._id !== id));
     } catch { console.error('Delete failed'); }
+  };
+
+  const handleRestore = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`${API_BASE}/api/projects/${id}/restore`, { method: 'POST', headers: authHeaders() });
+      const data = await res.json();
+      if (data.success) setProjects(prev => prev.filter(p => p._id !== id));
+    } catch { console.error('Restore failed'); }
+  };
+
+  const handleToggleFavorite = async (e: React.MouseEvent, id: string, current: boolean) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`${API_BASE}/api/projects/${id}/favorite`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ isFavorite: !current })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // In the Favorites view, un-starring removes the card; elsewhere update in place.
+        setProjects(prev => filter === 'favorites' && !data.isFavorite
+          ? prev.filter(p => p._id !== id)
+          : prev.map(p => p._id === id ? { ...p, isFavorite: data.isFavorite } : p));
+      }
+    } catch { console.error('Favorite toggle failed'); }
   };
 
   const filteredProjects = projects.filter(p => {
@@ -126,14 +157,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-display text-3xl font-bold text-white">My Projects</h1>
-          <p className="text-white/45 mt-1">{loading ? 'Loading…' : `${projects.length} project${projects.length !== 1 ? 's' : ''} total`}</p>
+          <h1 className="font-display text-3xl font-bold text-white">{view.title}</h1>
+          <p className="text-white/45 mt-1">{loading ? 'Loading…' : `${projects.length} ${projects.length === 1 ? 'project' : 'projects'} · ${view.sub}`}</p>
         </div>
         <GradientButton onClick={onNewProject}><Plus className="w-5 h-5" /> New Project</GradientButton>
       </div>
 
       {/* Stats bar — populated from /api/dashboard */}
-      {stats && (
+      {stats && filter === 'all' && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
             { icon: FolderOpen, label: 'Total Designs', value: stats.totalDesigns ?? projects.length, tint: 'from-brand-indigo to-brand-violet' },
@@ -157,6 +188,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
                 <p className="text-lg font-black text-white">{value}</p>
               </div>
             </GlassCard>
+          ))}
+        </div>
+      )}
+
+      {/* Quick actions (#18) */}
+      {filter === 'all' && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
+          {[
+            { label: 'New voice project', icon: Mic, onClick: onNewProject, tint: 'from-brand-indigo to-brand-violet' },
+            { label: 'Browse marketplace', icon: ShoppingBag, onClick: () => onNavigate?.('marketplace'), tint: 'from-brand-cyan to-brand-teal' },
+            { label: 'Upgrade to Premium', icon: LayoutTemplate, onClick: () => onNavigate?.('settings'), tint: 'from-brand-amber to-brand-pink' },
+          ].map(qa => (
+            <button key={qa.label} onClick={qa.onClick}
+              className="group flex items-center gap-3 glass rounded-2xl p-4 hover:border-white/25 transition-all text-left">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${qa.tint} flex-shrink-0`}>
+                <qa.icon className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-sm font-bold text-white group-hover:text-brand-cyan transition-colors">{qa.label}</span>
+            </button>
           ))}
         </div>
       )}
@@ -214,8 +264,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
                   <Globe className="w-3.5 h-3.5" />
                   {project.language || 'English'}
                 </div>
-                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <button onClick={(e) => handleDelete(e, project._id)}
+                {/* Favorite toggle (not in trash) */}
+                {!isTrash && (
+                  <button onClick={(e) => handleToggleFavorite(e, project._id, !!project.isFavorite)}
+                    title={project.isFavorite ? 'Unfavorite' : 'Add to favorites'}
+                    className="absolute top-4 left-4 z-10 p-2 bg-black/25 backdrop-blur-md rounded-lg text-white hover:bg-black/40 transition-colors">
+                    <Star className={`w-4 h-4 ${project.isFavorite ? 'fill-amber-400 text-amber-400' : ''}`} />
+                  </button>
+                )}
+                <div className="absolute bottom-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  {isTrash && (
+                    <button onClick={(e) => handleRestore(e, project._id)} title="Restore"
+                      className="p-2 bg-black/25 backdrop-blur-md rounded-lg text-white hover:bg-emerald-500/60 transition-colors">
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button onClick={(e) => handleDelete(e, project._id)} title={isTrash ? 'Delete forever' : 'Move to Trash'}
                     className="p-2 bg-black/25 backdrop-blur-md rounded-lg text-white hover:bg-rose-500/60 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>

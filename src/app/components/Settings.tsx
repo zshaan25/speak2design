@@ -3,9 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Bell, Shield, Palette, CreditCard,
   ChevronRight, ArrowLeft, X, Save, Loader2, Crown,
-  Check, Eye, EyeOff, Globe, AlertTriangle, Trash2, PauseCircle
+  Check, Eye, EyeOff, Globe, AlertTriangle, Trash2, PauseCircle,
+  Sun, Moon, Type, Receipt
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTheme } from '../theme/ThemeContext';
+import { GradientButton } from '../design/GradientButton';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:5000';
 
@@ -406,6 +409,143 @@ const DeleteModal: React.FC<{
   );
 };
 
+// ─── Modal shell ──────────────────────────────────────────────────────────────
+const ModalShell: React.FC<{ title: string; icon: any; onClose: () => void; children: React.ReactNode }> = ({ title, icon: Icon, onClose, children }) => (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+      className="glass-strong gradient-border rounded-2xl shadow-2xl w-full max-w-md text-white">
+      <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <h3 className="font-display font-bold text-lg flex items-center gap-2"><Icon className="w-5 h-5 text-brand-violet" /> {title}</h3>
+        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/60"><X className="w-5 h-5" /></button>
+      </div>
+      {children}
+    </motion.div>
+  </div>
+);
+
+const Toggle: React.FC<{ on: boolean; onChange: () => void }> = ({ on, onChange }) => (
+  <button onClick={onChange} className={`relative w-11 h-6 rounded-full transition-colors ${on ? 'bg-brand-violet' : 'bg-white/15'}`}>
+    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-5' : ''}`} />
+  </button>
+);
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+const NotificationsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const KEY = 'speak2design_notifs';
+  const [prefs, setPrefs] = useState(() => {
+    try { return { email: true, productUpdates: true, marketing: false, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }
+    catch { return { email: true, productUpdates: true, marketing: false }; }
+  });
+  const toggle = (k: string) => setPrefs((p: any) => ({ ...p, [k]: !p[k] }));
+  const save = () => { localStorage.setItem(KEY, JSON.stringify(prefs)); toast.success('Notification preferences saved.'); onClose(); };
+  const rows = [
+    { k: 'email', label: 'Email notifications', desc: 'Account and project activity' },
+    { k: 'productUpdates', label: 'Product updates', desc: 'New features and improvements' },
+    { k: 'marketing', label: 'Marketing emails', desc: 'Tips, offers and news' },
+  ];
+  return (
+    <ModalShell title="Notifications" icon={Bell} onClose={onClose}>
+      <div className="p-6 space-y-4">
+        {rows.map(r => (
+          <div key={r.k} className="flex items-center justify-between gap-4">
+            <div><p className="text-sm font-bold text-white">{r.label}</p><p className="text-xs text-white/50">{r.desc}</p></div>
+            <Toggle on={prefs[r.k]} onChange={() => toggle(r.k)} />
+          </div>
+        ))}
+        <GradientButton full onClick={save}>Save Preferences</GradientButton>
+      </div>
+    </ModalShell>
+  );
+};
+
+// ─── Appearance ───────────────────────────────────────────────────────────────
+const AppearanceModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { theme, setTheme } = useTheme();
+  const FONTS = ['Inter', 'Poppins', 'Roboto', 'Montserrat', 'Playfair Display', 'Nunito'];
+  const [font, setFont] = useState(() => { try { return localStorage.getItem('speak2design_canvas_font') || 'Inter'; } catch { return 'Inter'; } });
+  const applyFont = (f: string) => { setFont(f); localStorage.setItem('speak2design_canvas_font', f); toast.success(`Canvas font set to ${f}.`); };
+  return (
+    <ModalShell title="Appearance" icon={Palette} onClose={onClose}>
+      <div className="p-6 space-y-5">
+        <div>
+          <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Theme</p>
+          <div className="grid grid-cols-2 gap-2">
+            {([['dark', 'Dark', Moon], ['light', 'Light', Sun]] as const).map(([val, lbl, Icon]) => (
+              <button key={val} onClick={() => setTheme(val)}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-all ${
+                  theme === val ? 'border-brand-violet/60 bg-brand-indigo/15 text-brand-cyan' : 'border-white/10 text-white/60 hover:bg-white/5'
+                }`}>
+                <Icon className="w-4 h-4" /> {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Type className="w-3.5 h-3.5" /> Canvas Font</p>
+          <div className="grid grid-cols-2 gap-2">
+            {FONTS.map(f => (
+              <button key={f} onClick={() => applyFont(f)}
+                className={`py-2.5 rounded-xl border text-sm font-semibold transition-all ${
+                  font === f ? 'border-brand-violet/60 bg-brand-indigo/15 text-brand-cyan' : 'border-white/10 text-white/65 hover:bg-white/5'
+                }`}>{f}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
+// ─── Billing ──────────────────────────────────────────────────────────────────
+const BillingModal: React.FC<{ user: any; isUpgrading: boolean; onUpgrade: () => void; onClose: () => void }> = ({ user, isUpgrading, onUpgrade, onClose }) => {
+  const [history, setHistory] = useState<any[]>([]);
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const token = localStorage.getItem('speak2design_token');
+        const res = await fetch(`${API_BASE}/api/marketplace/library`, { headers: { Authorization: `Bearer ${token}` } });
+        const d = await res.json();
+        if (d.success) setHistory(d.templates || []);
+      } catch { /* ignore */ }
+    })();
+  }, []);
+  const isPremium = user.tier === 'premium';
+  return (
+    <ModalShell title="Billing & Plans" icon={CreditCard} onClose={onClose}>
+      <div className="p-6 space-y-5">
+        <div className="rounded-2xl p-4 gradient-border" style={{ background: 'linear-gradient(150deg, rgba(99,102,241,.25), rgba(6,182,212,.15))' }}>
+          <p className="text-xs font-bold text-white/60 uppercase tracking-widest">Current plan</p>
+          <p className="font-display text-2xl font-bold text-white mt-1 flex items-center gap-2">
+            {isPremium ? <><Crown className="w-5 h-5 text-brand-amber" /> Premium</> : 'Free'}
+          </p>
+          <p className="text-xs text-white/55 mt-1">{isPremium ? 'Unlimited commands, downloads & publishing.' : '10 commands / 30-day window · copy-only export.'}</p>
+        </div>
+        {!isPremium && (
+          <GradientButton full onClick={onUpgrade} disabled={isUpgrading}>
+            {isUpgrading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Crown className="w-5 h-5" />}
+            {isUpgrading ? 'Upgrading…' : 'Upgrade to Premium'}
+          </GradientButton>
+        )}
+        <div>
+          <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Receipt className="w-3.5 h-3.5" /> Payment history</p>
+          {history.length === 0 ? (
+            <p className="text-sm text-white/40 italic">No purchases yet.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {history.map((t, i) => (
+                <div key={i} className="flex items-center justify-between text-sm bg-white/5 rounded-lg px-3 py-2">
+                  <span className="text-white/80 truncate">{t.title}</span>
+                  <span className="text-white/50 font-mono text-xs">Rs {t.price ?? 0}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
 // ─── Settings Screen ──────────────────────────────────────────────────────────
 export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUpdate, onSignOut }) => {
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -463,11 +603,11 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
 
   const sections = [
     { id: 'profile', label: 'Profile Settings', icon: User, desc: 'Update your name, email, and password', action: () => setActiveModal('profile') },
-    { id: 'notifications', label: 'Notifications', icon: Bell, desc: 'Configure alert preferences', action: () => toast.info('Notification settings coming soon.') },
-    { id: 'security', label: 'Security', icon: Shield, desc: 'Password and account protection', action: () => setActiveModal('profile') },
-    { id: 'appearance', label: 'Appearance', icon: Palette, desc: 'Light and dark theme options', action: () => toast.info('Theme toggle coming soon.') },
+    { id: 'notifications', label: 'Notifications', icon: Bell, desc: 'Email, product updates, marketing', action: () => setActiveModal('notifications') },
+    { id: 'security', label: 'Security', icon: Shield, desc: 'Change password, sessions', action: () => setActiveModal('profile') },
+    { id: 'appearance', label: 'Appearance', icon: Palette, desc: 'Theme (light/dark) and canvas font', action: () => setActiveModal('appearance') },
     { id: 'language', label: 'Voice Language', icon: Globe, desc: 'Default voice command language (English / Urdu)', action: () => setActiveModal('language') },
-    { id: 'billing', label: 'Billing & Plans', icon: CreditCard, desc: 'Manage subscription and upgrade to Premium', action: handleUpgrade },
+    { id: 'billing', label: 'Billing & Plans', icon: CreditCard, desc: 'Manage subscription and upgrade to Premium', action: () => setActiveModal('billing') },
   ];
 
   return (
@@ -480,6 +620,15 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
         )}
         {activeModal === 'language' && (
           <LanguageModal onClose={() => setActiveModal(null)} />
+        )}
+        {activeModal === 'notifications' && (
+          <NotificationsModal onClose={() => setActiveModal(null)} />
+        )}
+        {activeModal === 'appearance' && (
+          <AppearanceModal onClose={() => setActiveModal(null)} />
+        )}
+        {activeModal === 'billing' && (
+          <BillingModal user={currentUser} isUpgrading={isUpgrading} onUpgrade={handleUpgrade} onClose={() => setActiveModal(null)} />
         )}
         {activeModal === 'deactivate' && (
           <DeactivateModal

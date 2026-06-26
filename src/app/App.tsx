@@ -27,6 +27,7 @@ export default function App() {
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
   const [publicShareToken, setPublicShareToken] = useState<string | null>(null);
   const [dashboardFilter, setDashboardFilter] = useState<string>('all');
+  const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
 
   // ── Detect /view/:token share links before anything else ──────────────────
   // The app uses a state-machine router without React Router, so we intercept
@@ -158,13 +159,16 @@ export default function App() {
     setCurrentPage(page as Page);
   };
 
-  const handleNewProject = async () => {
+  // Optionally seeds the new project with an AI prompt that the workspace
+  // auto-generates from on load (#17 website creation flow).
+  const handleNewProject = async (prompt?: string, title?: string, language?: string) => {
+    setInitialPrompt(prompt && prompt.trim() ? prompt.trim() : null);
     try {
       const token = localStorage.getItem('speak2design_token');
       const res = await fetch(`${API_BASE}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: 'Untitled Project', language: 'English' })
+        body: JSON.stringify({ title: title || 'Untitled Project', language: language || 'English' })
       });
       const data = await res.json();
       if (data.success) {
@@ -221,7 +225,7 @@ export default function App() {
           />
         );
       case 'workspace':
-        return <Workspace projectId={selectedProjectId} onBack={() => setCurrentPage('dashboard')} />;
+        return <Workspace projectId={selectedProjectId} onBack={() => setCurrentPage('dashboard')} initialPrompt={initialPrompt} />;
       case 'marketplace':
         return <Marketplace onCheckout={handleCheckout} onBack={() => setCurrentPage('dashboard')} onOpenProject={handleSelectProject} />;
       case 'checkout':

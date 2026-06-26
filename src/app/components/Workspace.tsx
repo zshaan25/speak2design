@@ -22,6 +22,7 @@ const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:500
 interface WorkspaceProps {
   onBack: () => void;
   projectId?: string | null;
+  initialPrompt?: string | null;
 }
 
 interface CanvasComponent {
@@ -439,7 +440,7 @@ body {
 };
 
 // ─── Workspace Component ───────────────────────────────────────────────────────
-export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initialPrompt }) => {
   const [isListening, setIsListening] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [language, setLanguage] = useState<'English' | 'Urdu'>('English');
@@ -966,9 +967,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
   };
 
   // ── Text command ─────────────────────────────────────────────────────────────
-  const dispatchTextCommand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!textCommand.trim()) return;
+  // Runs a command string through the AI pipeline (used by the form + #17 auto-run).
+  const runTextCommand = async (command: string) => {
+    if (!command.trim()) return;
     if (userTier === 'free' && usageCount >= FREE_TIER_LIMIT) {
       toast.error(`Free tier limit (${FREE_TIER_LIMIT} commands) reached. Upgrade to Premium.`);
       return;
@@ -980,7 +981,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       const res = await fetch(`${API_BASE}/api/voice/process-text-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ command: textCommand, currentCanvas: canvasState, language })
+        body: JSON.stringify({ command, currentCanvas: canvasState, language })
       });
       const data = await res.json();
 
@@ -992,7 +993,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       }
       if (res.status === 429) { toast.error(data.message || 'Too many requests. Wait a moment.'); return; }
       if (res.ok && data.success) {
-        handleAPIResponse(data, { type: 'text', command: textCommand });
+        handleAPIResponse(data, { type: 'text', command });
         setTextCommand('');
       } else {
         toast.error(data.message || 'Command failed.');
@@ -1003,6 +1004,21 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId }) => {
       setIsProcessingAI(false);
     }
   };
+
+  const dispatchTextCommand = (e: React.FormEvent) => { e.preventDefault(); runTextCommand(textCommand); };
+
+  // #17: auto-generate from the onboarding prompt once, after the project loads.
+  const initialPromptRanRef = useRef(false);
+  useEffect(() => {
+    if (!initialPrompt || initialPromptRanRef.current) return;
+    initialPromptRanRef.current = true;
+    const t = setTimeout(() => {
+      toast.info('Generating your website from your description…');
+      runTextCommand(initialPrompt);
+    }, 600);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt]);
 
   // ── Remove component ─────────────────────────────────────────────────────────
   const removeComponent = (id: string) => {

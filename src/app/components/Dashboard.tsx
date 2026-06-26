@@ -1,18 +1,69 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, Clock, Globe, Trash2, CheckCircle2, FolderOpen, Mic, LayoutTemplate, ShoppingBag, Star, RotateCcw } from 'lucide-react';
+import { Plus, Search, Clock, Globe, Trash2, CheckCircle2, FolderOpen, Mic, LayoutTemplate, ShoppingBag, Star, RotateCcw, Sparkles, Wand2, X, ArrowRight } from 'lucide-react';
 import { GlassCard } from '../design/GlassCard';
 import { GradientButton } from '../design/GradientButton';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:5000';
 
 interface DashboardProps {
-  onNewProject: () => void;
+  onNewProject: (prompt?: string) => void;
   onSelectProject: (id: string) => void;
   showSuccess?: boolean;
   filter?: string;
   onNavigate?: (page: string) => void;
 }
+
+// #17: guided "create a website" onboarding modal.
+const CreateWebsiteModal: React.FC<{ onClose: () => void; onNewProject: (prompt?: string) => void; onBrowse: () => void }> = ({ onClose, onNewProject, onBrowse }) => {
+  const [prompt, setPrompt] = useState('');
+  const EXAMPLES = ['An e-commerce store for sneakers', 'A SaaS landing page with pricing', 'A personal portfolio with projects', 'A restaurant website with menu'];
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+        className="glass-strong gradient-border rounded-3xl w-full max-w-2xl text-white overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <h3 className="font-display text-xl font-bold flex items-center gap-2"><Sparkles className="w-5 h-5 text-brand-amber" /> Create a Website</h3>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/60"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-6 space-y-5">
+          {/* Option 1 — AI */}
+          <div>
+            <p className="text-sm font-bold text-white mb-2 flex items-center gap-2"><Wand2 className="w-4 h-4 text-brand-violet" /> Describe it — AI builds it</p>
+            <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={2}
+              placeholder="e.g. A modern e-commerce website for handmade jewellery…"
+              className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-brand-violet/60 resize-none text-sm" />
+            <div className="flex flex-wrap gap-2 mt-2">
+              {EXAMPLES.map(ex => (
+                <button key={ex} onClick={() => setPrompt(ex)}
+                  className="text-[11px] px-2.5 py-1 rounded-full glass text-white/60 hover:text-white hover:border-white/25 transition-all">{ex}</button>
+              ))}
+            </div>
+            <GradientButton full onClick={() => { onClose(); onNewProject(prompt); }} disabled={!prompt.trim()} className="mt-3">
+              <Wand2 className="w-4 h-4" /> Generate with AI <ArrowRight className="w-4 h-4" />
+            </GradientButton>
+          </div>
+          <div className="flex items-center gap-3 text-white/30 text-xs"><div className="flex-1 border-t border-white/10" /> or <div className="flex-1 border-t border-white/10" /></div>
+          {/* Options 2 + 3 */}
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => { onClose(); onBrowse(); }}
+              className="glass rounded-xl p-4 text-left hover:border-white/25 transition-all group">
+              <LayoutTemplate className="w-6 h-6 text-brand-cyan mb-2" />
+              <p className="font-bold text-sm text-white">Start from a template</p>
+              <p className="text-xs text-white/45">Browse the marketplace</p>
+            </button>
+            <button onClick={() => { onClose(); onNewProject(); }}
+              className="glass rounded-xl p-4 text-left hover:border-white/25 transition-all group">
+              <Plus className="w-6 h-6 text-brand-teal mb-2" />
+              <p className="font-bold text-sm text-white">Blank canvas</p>
+              <p className="text-xs text-white/45">Build from scratch</p>
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 const VIEW_TITLES: Record<string, { title: string; sub: string }> = {
   all:       { title: 'My Projects',     sub: 'All your designs' },
@@ -44,6 +95,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [langFilter, setLangFilter] = useState<'All' | 'English' | 'Urdu'>('All');
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     if (showSuccess) {
@@ -138,6 +190,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
   return (
     <div className="pt-24 pb-12 px-8 max-w-7xl mx-auto">
       <AnimatePresence>
+        {showCreate && (
+          <CreateWebsiteModal
+            onClose={() => setShowCreate(false)}
+            onNewProject={onNewProject}
+            onBrowse={() => (onNavigate ? onNavigate('marketplace') : undefined)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
         {visibleSuccess && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="mb-8 glass border border-emerald-400/20 p-4 rounded-2xl flex items-center justify-between">
@@ -160,7 +221,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
           <h1 className="font-display text-3xl font-bold text-white">{view.title}</h1>
           <p className="text-white/45 mt-1">{loading ? 'Loading…' : `${projects.length} ${projects.length === 1 ? 'project' : 'projects'} · ${view.sub}`}</p>
         </div>
-        <GradientButton onClick={onNewProject}><Plus className="w-5 h-5" /> New Project</GradientButton>
+        <GradientButton onClick={() => setShowCreate(true)}><Plus className="w-5 h-5" /> New Project</GradientButton>
       </div>
 
       {/* Stats bar — populated from /api/dashboard */}
@@ -251,7 +312,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
             {searchQuery ? 'Try a different search term.' : 'Create your first voice-powered design project.'}
           </p>
           {!searchQuery && (
-            <GradientButton onClick={onNewProject}><Plus className="w-5 h-5" /> Create First Project</GradientButton>
+            <GradientButton onClick={() => setShowCreate(true)}><Plus className="w-5 h-5" /> Create First Project</GradientButton>
           )}
         </div>
       ) : (

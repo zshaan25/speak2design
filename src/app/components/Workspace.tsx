@@ -1827,9 +1827,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               setShowExportModal(true);
             }}
             title="Download your completed website as code"
-            className="group relative flex items-center gap-1.5 overflow-hidden text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-[0_0_22px_-10px_rgba(99,102,241,.8)]"
+            className="group relative flex items-center gap-1.5 overflow-hidden text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-[0_0_22px_-10px_rgba(16,185,129,.8)]"
           >
-            <span className="absolute inset-0 anim-gradient" style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }} />
+            <span className="absolute inset-0 anim-gradient" style={{ background: 'linear-gradient(120deg,#10b981,#14b8a6,#06b6d4)' }} />
             <span className="relative z-10 flex items-center gap-1.5"><Code2 className="w-4 h-4" /> Export</span>
           </button>
         </div>
@@ -1872,13 +1872,13 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
                 disabled={isProcessingAI}
                 title="Generate UI using voice commands."
                 className={`group relative w-full flex items-center justify-center gap-2.5 overflow-hidden text-white px-4 py-3 rounded-2xl font-bold shadow-lg transition-transform active:scale-[0.98] disabled:opacity-70 ${
-                  isListening ? 'shadow-[0_0_35px_-8px_rgba(236,72,153,.8)]' : 'shadow-[0_0_30px_-12px_rgba(99,102,241,.8)]'
+                  isListening ? 'shadow-[0_0_35px_-8px_rgba(236,72,153,.8)]' : 'shadow-[0_0_30px_-12px_rgba(16,185,129,.8)]'
                 }`}
               >
                 <span className="absolute inset-0 anim-gradient" style={{
                   background: isListening
                     ? 'linear-gradient(120deg,#ec4899,#8b5cf6,#ef4444)'
-                    : 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)'
+                    : 'linear-gradient(120deg,#10b981,#14b8a6,#06b6d4)'
                 }} />
                 {/* Pulsing ring while listening */}
                 {isListening && (

@@ -305,8 +305,8 @@ body {
 /* Editor surfaces hardcode dark hex values that the override map didn't cover →
    the workspace stayed dark in light mode. Flip the root, canvas backdrop and
    code view to light Figma-style greys. */
-.light .bg-\[\#0b1120\] { background: #eef2f7 !important; }
-.light .bg-\[\#0f172a\] { background: #e2e8f0 !important; }
+.light .bg-\[\#0b1120\] { background: #d7dde7 !important; }
+.light .bg-\[\#0f172a\] { background: #c2ccda !important; } /* deeper slate so the white canvas card pops */
 .light .bg-\[\#0d1117\] { background: #1e293b !important; } /* code view stays dark for legibility */
 
 /* Text */

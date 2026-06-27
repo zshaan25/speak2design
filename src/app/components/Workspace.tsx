@@ -1593,7 +1593,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
           <input
             value={projectTitle}
             onChange={e => setProjectTitle(e.target.value)}
-            className="font-bold text-white bg-transparent border-none outline-none hover:bg-white/5 focus:bg-white/5 px-2 py-1 rounded-lg transition-colors text-sm"
+            size={1}
+            className="font-bold text-white bg-transparent border-none outline-none hover:bg-white/5 focus:bg-white/5 px-2 py-1 rounded-lg transition-colors text-sm w-32 sm:w-40 shrink-0"
           />
           {/* Active page breadcrumb */}
           {activePageId && pages.length > 0 && (
@@ -1694,7 +1695,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               className="flex items-center gap-1.5 px-3 py-2 glass text-brand-pink rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
             >
               <Palette className="w-4 h-4" />
-              <span className="hidden xl:inline">Theme</span>
+              <span className="hidden 2xl:inline">Theme</span>
             </button>
             {showThemePicker && (
               <div className="absolute right-0 top-full mt-2 glass-strong border border-white/10 rounded-2xl shadow-xl p-3 z-50 w-40">
@@ -1721,7 +1722,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               className="flex items-center gap-1.5 px-3 py-2 glass text-brand-cyan rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
             >
               <Type className="w-4 h-4" />
-              <span className="hidden xl:inline">{canvasFont === 'Inter' ? 'Font' : canvasFont.split(' ')[0]}</span>
+              <span className="hidden 2xl:inline">{canvasFont === 'Inter' ? 'Font' : canvasFont.split(' ')[0]}</span>
             </button>
             {showFontPicker && (
               <div className="absolute right-0 top-full mt-2 glass-strong border border-white/10 rounded-2xl shadow-xl p-3 z-50 w-52">
@@ -1749,7 +1750,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             title="Start quickly using professionally designed templates."
           >
             <LayoutTemplate className="w-4 h-4" />
-            <span className="hidden xl:inline">Templates</span>
+            <span className="hidden 2xl:inline">Templates</span>
           </button>
           <button
             onClick={() => {
@@ -1760,7 +1761,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             title="Preview your website exactly as users will see it."
           >
             <Eye className="w-4 h-4" />
-            <span className="hidden xl:inline">Preview</span>
+            <span className="hidden 2xl:inline">Preview</span>
           </button>
           <button
             onClick={() => {
@@ -1771,14 +1772,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             title="Generate a shareable project link and collaborate with others."
           >
             <Share2 className="w-4 h-4" />
-            <span className="hidden xl:inline">Share</span>
+            <span className="hidden 2xl:inline">Share</span>
           </button>
           <div className="h-6 w-px bg-white/10 mx-1" />
           <button onClick={handleSaveProject} disabled={isSaving}
             title="Save your project to the cloud"
             className="flex items-center gap-1.5 px-3 py-2 glass text-white rounded-lg text-sm font-bold hover:border-white/25 disabled:opacity-50 transition-colors">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            <span className="hidden xl:inline">Save</span>
+            <span className="hidden 2xl:inline">Save</span>
           </button>
           {/* #5/#10: Export sized to match every other toolbar button (px-3 py-2, gap-1.5). */}
           <button
@@ -1790,7 +1791,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             className="group relative flex items-center gap-1.5 overflow-hidden text-white px-3 py-2 rounded-lg text-sm font-bold shadow-[0_0_22px_-10px_rgba(99,102,241,.8)]"
           >
             <span className="absolute inset-0 anim-gradient" style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }} />
-            <span className="relative z-10 flex items-center gap-1.5"><Code2 className="w-4 h-4" /> <span className="hidden xl:inline">Export</span></span>
+            <span className="relative z-10 flex items-center gap-1.5"><Code2 className="w-4 h-4" /> <span className="hidden 2xl:inline">Export</span></span>
           </button>
         </div>
       </div>

@@ -1585,18 +1585,29 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
         )}
       </AnimatePresence>
 
-      {/* Website Preview Modal */}
+      {/* Website Preview Modal — falls back to the live canvas when the project
+          has no Page docs yet (e.g. a brand-new project), so preview always works. */}
       <AnimatePresence>
-        {showPreview && (
-          <WebsitePreview
-            pages={pages}
-            canvasCache={pageCanvasCache.current}
-            activePageId={activePageId}
-            projectTitle={projectTitle}
-            onClose={() => setShowPreview(false)}
-            canvasFont={canvasFont}
-          />
-        )}
+        {showPreview && (() => {
+          const hasPages = pages.length > 0;
+          const previewPages = hasPages
+            ? pages
+            : [{ _id: 'current', name: projectTitle || 'Page', slug: 'index', canvasState } as any];
+          const previewCache = hasPages
+            ? pageCanvasCache.current
+            : { current: canvasState };
+          const previewActiveId = hasPages ? activePageId : 'current';
+          return (
+            <WebsitePreview
+              pages={previewPages}
+              canvasCache={previewCache}
+              activePageId={previewActiveId}
+              projectTitle={projectTitle}
+              onClose={() => setShowPreview(false)}
+              canvasFont={canvasFont}
+            />
+          );
+        })()}
       </AnimatePresence>
 
       {/* ── Toolbar ── overflow-visible so Theme/Font dropdowns (absolute top-full) aren't clipped */}
@@ -1770,7 +1781,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
           </button>
           <button
             onClick={() => {
-              if (pages.length === 0) { toast.error('No pages found — save the project first.'); return; }
+              // Preview the live canvas; pages are optional (new projects have none yet).
+              if (pages.length === 0 && canvasState.length === 0) {
+                toast.error('Add components to the canvas first.'); return;
+              }
               setShowPreview(true);
             }}
             className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-emerald-300 rounded-lg text-xs font-bold hover:border-white/25 transition-colors"

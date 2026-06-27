@@ -1607,7 +1607,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {userTier === 'free' && (
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${
               usageCount >= FREE_TIER_LIMIT
@@ -1692,10 +1692,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             <button
               onClick={() => setShowThemePicker(p => !p)}
               title="Apply color theme"
-              className="flex items-center gap-1.5 px-3 py-2 glass text-brand-pink rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-brand-pink rounded-lg text-xs font-bold hover:border-white/25 transition-colors"
             >
               <Palette className="w-4 h-4" />
-              <span className="hidden 2xl:inline">Theme</span>
+              Theme
             </button>
             {showThemePicker && (
               <div className="absolute right-0 top-full mt-2 glass-strong border border-white/10 rounded-2xl shadow-xl p-3 z-50 w-40">
@@ -1719,10 +1719,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             <button
               onClick={() => { setShowFontPicker(p => !p); setShowThemePicker(false); }}
               title="Change canvas font"
-              className="flex items-center gap-1.5 px-3 py-2 glass text-brand-cyan rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-brand-cyan rounded-lg text-xs font-bold hover:border-white/25 transition-colors"
             >
               <Type className="w-4 h-4" />
-              <span className="hidden 2xl:inline">{canvasFont === 'Inter' ? 'Font' : canvasFont.split(' ')[0]}</span>
+              {canvasFont === 'Inter' ? 'Font' : canvasFont.split(' ')[0]}
             </button>
             {showFontPicker && (
               <div className="absolute right-0 top-full mt-2 glass-strong border border-white/10 rounded-2xl shadow-xl p-3 z-50 w-52">
@@ -1746,40 +1746,40 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
           {/* #9: Templates → Preview → Share (consistent order, equal sizing) */}
           <button
             onClick={() => setShowTemplateLibrary(true)}
-            className="flex items-center gap-1.5 px-3 py-2 glass text-brand-violet rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-brand-violet rounded-lg text-xs font-bold hover:border-white/25 transition-colors"
             title="Start quickly using professionally designed templates."
           >
             <LayoutTemplate className="w-4 h-4" />
-            <span className="hidden 2xl:inline">Templates</span>
+            Templates
           </button>
           <button
             onClick={() => {
               if (pages.length === 0) { toast.error('No pages found — save the project first.'); return; }
               setShowPreview(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 glass text-emerald-300 rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-emerald-300 rounded-lg text-xs font-bold hover:border-white/25 transition-colors"
             title="Preview your website exactly as users will see it."
           >
             <Eye className="w-4 h-4" />
-            <span className="hidden 2xl:inline">Preview</span>
+            Preview
           </button>
           <button
             onClick={() => {
               if (!projectId) { toast.error('Save the project first before sharing.'); return; }
               setShowShareModal(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 glass text-brand-amber rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-brand-amber rounded-lg text-xs font-bold hover:border-white/25 transition-colors"
             title="Generate a shareable project link and collaborate with others."
           >
             <Share2 className="w-4 h-4" />
-            <span className="hidden 2xl:inline">Share</span>
+            Share
           </button>
           <div className="h-6 w-px bg-white/10 mx-1" />
           <button onClick={handleSaveProject} disabled={isSaving}
             title="Save your project to the cloud"
-            className="flex items-center gap-1.5 px-3 py-2 glass text-white rounded-lg text-sm font-bold hover:border-white/25 disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-white rounded-lg text-xs font-bold hover:border-white/25 disabled:opacity-50 transition-colors">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            <span className="hidden 2xl:inline">Save</span>
+            Save
           </button>
           {/* #5/#10: Export sized to match every other toolbar button (px-3 py-2, gap-1.5). */}
           <button
@@ -1788,10 +1788,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               setShowExportModal(true);
             }}
             title="Download your completed website as code"
-            className="group relative flex items-center gap-1.5 overflow-hidden text-white px-3 py-2 rounded-lg text-sm font-bold shadow-[0_0_22px_-10px_rgba(99,102,241,.8)]"
+            className="group relative flex items-center gap-1.5 overflow-hidden text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-[0_0_22px_-10px_rgba(99,102,241,.8)]"
           >
             <span className="absolute inset-0 anim-gradient" style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }} />
-            <span className="relative z-10 flex items-center gap-1.5"><Code2 className="w-4 h-4" /> <span className="hidden 2xl:inline">Export</span></span>
+            <span className="relative z-10 flex items-center gap-1.5"><Code2 className="w-4 h-4" /> Export</span>
           </button>
         </div>
       </div>

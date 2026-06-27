@@ -271,7 +271,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
       {filter === 'all' && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
           {[
-            { label: 'New voice project', icon: Mic, onClick: onNewProject, tint: 'from-brand-indigo to-brand-violet' },
+            { label: 'New voice project', icon: Mic, onClick: () => onNewProject(), tint: 'from-brand-indigo to-brand-violet' },
             { label: 'Browse marketplace', icon: ShoppingBag, onClick: () => onNavigate?.('marketplace'), tint: 'from-brand-cyan to-brand-teal' },
             { label: 'Upgrade to Premium', icon: LayoutTemplate, onClick: () => onNavigate?.('settings'), tint: 'from-brand-amber to-brand-pink' },
           ].map(qa => (

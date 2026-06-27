@@ -1414,21 +1414,37 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
     { id: 'noir',    label: 'Noir',     dot: 'bg-slate-600',  swap: [['blue','slate'],['indigo','gray'],['cyan','zinc'],['violet','stone'],['green','gray']] },
   ];
 
+  // Per-component snapshot of the ORIGINAL html, captured the first time a theme
+  // is applied. Every theme switch transforms from this snapshot (not the already
+  // recoloured html), so themes are repeatable and "Default" restores the original.
+  const themeOriginRef = useRef<Record<string, string>>({});
+
+  // Recolour ONLY Tailwind colour tokens inside class names — e.g. bg-blue-500,
+  // hover:text-blue-700, from-blue-600 — never free text, so markup can't break.
+  const swapColorTokens = (html: string, swaps: [string, string][]) => {
+    let out = html;
+    for (const [from, to] of swaps) {
+      // matches `<prefix->blue<-shade>` where prefix is a utility like bg/text/border/from/to/via/ring(+variant)
+      out = out.replace(new RegExp(`([-:])${from}(-\\d{2,3})`, 'g'), `$1${to}$2`);
+    }
+    return out;
+  };
+
   const applyColorTheme = (themeId: ColorTheme) => {
     setShowThemePicker(false);
+    if (canvasState.length === 0) { toast.info('Add a component first — themes recolour the canvas.'); return; }
     const theme = THEMES.find(t => t.id === themeId)!;
-    if (themeId === 'default') { toast.info('Default theme already applied.'); return; }
     const updated = canvasState.map(comp => {
-      let html = comp.htmlContent;
-      for (const [from, to] of theme.swap) {
-        // Swap e.g. "blue" in class names: -blue- and standalone class segments
-        html = html.replace(new RegExp(`-${from}-`, 'g'), `-${to}-`);
-        html = html.replace(new RegExp(`\\b${from}\\b`, 'g'), to);
-      }
+      // Capture the pristine html once so re-theming always starts from it.
+      if (!(comp.id in themeOriginRef.current)) themeOriginRef.current[comp.id] = comp.htmlContent;
+      const original = themeOriginRef.current[comp.id];
+      const html = themeId === 'default' ? original : swapColorTokens(original, theme.swap);
       return { ...comp, htmlContent: html };
     });
     pushNewStateToHistory(updated);
-    toast.success(`"${theme.label}" theme applied. Press Ctrl+Z to undo.`);
+    toast.success(themeId === 'default'
+      ? 'Reverted to original colours.'
+      : `"${theme.label}" theme applied. Press Ctrl+Z to undo.`);
   };
 
   // ── Layer Search ──────────────────────────────────────────────────────────────

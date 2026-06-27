@@ -1528,7 +1528,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
   };
 
   return (
-    <div className="h-screen bg-[#0b1120] flex flex-col pt-16">
+    <div className="h-screen bg-[#0b1120] flex flex-col pt-16 overflow-hidden">
 
       {/* Export Modal */}
       <AnimatePresence>
@@ -1583,9 +1583,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
         )}
       </AnimatePresence>
 
-      {/* ── Toolbar ── */}
-      <div className="h-14 glass border-b border-white/10 px-4 flex items-center justify-between z-10">
-        <div className="flex items-center gap-3">
+      {/* ── Toolbar ── #3: scrolls internally on narrow screens so it never widens the page */}
+      <div className="h-14 glass border-b border-white/10 px-4 flex items-center justify-between gap-3 z-10 overflow-x-auto shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60">
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -1606,7 +1606,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {userTier === 'free' && (
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${
               usageCount >= FREE_TIER_LIMIT
@@ -1798,7 +1798,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
       <div className="flex-1 flex overflow-hidden">
 
         {/* ── Left Panel ── */}
-        <div className="w-64 glass border-r border-white/10 flex flex-col overflow-hidden">
+        <div className="w-64 glass border-r border-white/10 flex flex-col overflow-hidden shrink-0">
           <div className="p-4 flex-1 overflow-y-auto space-y-5">
 
             {/* Language Toggle */}
@@ -2271,8 +2271,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               scrolls away with the generated UI. The canvas now holds only content. */}
         </div>
 
-        {/* ── Right Inspector ── */}
-        <div className="w-72 glass border-l border-white/10 flex flex-col overflow-y-auto p-5">
+        {/* ── Right Inspector ── #3: hidden below lg so canvas fits laptops/tablets without horizontal scroll */}
+        <div className="w-72 glass border-l border-white/10 hidden lg:flex flex-col overflow-y-auto p-5 shrink-0">
           <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
             <h3 className="font-bold text-white uppercase text-xs tracking-widest">Inspector</h3>
             <Settings2 className="w-4 h-4 text-white/40" />

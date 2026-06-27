@@ -206,19 +206,20 @@
   --color-space-900: var(--space-900);
   --color-space-800: var(--space-800);
   --color-space-700: var(--space-700);
-  --font-display: 'Clash Display', 'Satoshi', sans-serif;
-  --font-sans: 'Satoshi', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
 }
 
 body {
   background: var(--space-900);
   color: #e2e8f0;
-  font-family: 'Satoshi', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 /* Utility helpers used across the redesign */
-.font-display { font-family: 'Clash Display', sans-serif; }
+/* #5: premium brand typography — Space Grotesk, tightened tracking */
+.font-display { font-family: 'Space Grotesk', 'Inter', sans-serif; letter-spacing: -0.02em; }
 .glass {
   background: var(--glass);
   backdrop-filter: blur(16px) saturate(140%);
@@ -294,9 +295,19 @@ body {
 .light .aurora-grid { opacity: 0.10 !important; }
 .light .aurora-vignette { background: radial-gradient(ellipse at 50% 0%, transparent 55%, rgba(226,232,240,.6) 100%) !important; }
 
-.light .glass        { background: rgba(15,23,42,.035); border-color: rgba(15,23,42,.08); }
-.light .glass-strong { background: rgba(255,255,255,.75); border-color: rgba(15,23,42,.08); }
+/* #4: panels were near-transparent (3.5% opacity) on the light background and
+   vanished. Give them a real white surface + subtle shadow (premium "soft shadow,
+   not heavy border" look) so sidebar/toolbar/cards stay clearly visible. */
+.light .glass        { background: rgba(255,255,255,.88); border-color: rgba(15,23,42,.10); box-shadow: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04); }
+.light .glass-strong { background: rgba(255,255,255,.96); border-color: rgba(15,23,42,.10); box-shadow: 0 4px 16px -4px rgba(15,23,42,.12); }
 .light .gradient-border::before { background: linear-gradient(135deg, rgba(139,92,246,.4), rgba(6,182,212,.25), rgba(236,72,153,.3)); }
+
+/* Editor surfaces hardcode dark hex values that the override map didn't cover →
+   the workspace stayed dark in light mode. Flip the root, canvas backdrop and
+   code view to light Figma-style greys. */
+.light .bg-\[\#0b1120\] { background: #eef2f7 !important; }
+.light .bg-\[\#0f172a\] { background: #e2e8f0 !important; }
+.light .bg-\[\#0d1117\] { background: #1e293b !important; } /* code view stays dark for legibility */
 
 /* Text */
 .light .text-white { color:#0f172a !important; }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Monitor, Tablet, Smartphone, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { X, Monitor, Tablet, Smartphone, ChevronLeft, ChevronRight, ExternalLink, RotateCw } from 'lucide-react';
 
 // ─── Types (mirrors Workspace) ────────────────────────────────────────────────
 interface CanvasComponent {
@@ -114,6 +114,9 @@ export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
     return idx >= 0 ? idx : 0;
   });
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // Bumping this key forces the iframe to remount → a true "refresh".
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refreshPreview = () => setRefreshKey(k => k + 1);
 
   const currentPage = pages[previewPageIndex];
 
@@ -188,13 +191,34 @@ export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
             ))}
           </div>
 
-          {/* Open in new tab */}
+          {/* Refresh */}
+          <button
+            onClick={refreshPreview}
+            title="Refresh preview"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-semibold rounded-xl transition-colors flex-shrink-0"
+          >
+            <RotateCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+
+          {/* Open in new window */}
           <button
             onClick={openInNewTab}
+            title="Open in a new browser window"
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-semibold rounded-xl transition-colors flex-shrink-0"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            Open
+            <span className="hidden sm:inline">Open</span>
+          </button>
+
+          {/* Exit preview */}
+          <button
+            onClick={onClose}
+            title="Exit preview"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-semibold rounded-xl transition-colors flex-shrink-0"
+          >
+            <X className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Exit</span>
           </button>
         </div>
 
@@ -263,6 +287,7 @@ export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
               )}
 
               <iframe
+                key={`${previewPageIndex}-${refreshKey}`}
                 ref={iframeRef}
                 srcDoc={currentHTML}
                 title={`Preview — ${currentPage?.name ?? 'Page'}`}

@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Mic, ChevronLeft, Undo2, Redo2, Code2, Settings2, X, Save,
-  Volume2, VolumeX, GripVertical, Loader2, Crown, Zap, Download,
+  Volume2, VolumeX, GripVertical, Loader2, Zap, Download,
   Copy, Check, AlertCircle, RefreshCw, ArrowUp, ArrowDown, LayoutTemplate, Eye,
   ZoomIn, ZoomOut, Maximize2, Keyboard, Palette, Search, Sparkles, CloudOff,
-  Share2, BookMarked, History, Type, Link, Globe, Lock, ChevronDown, ChevronUp
+  Share2, BookMarked, History, Type, Link, Globe, Lock, ChevronDown, ChevronUp,
+  Mail, Github, UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DOMPurify from 'dompurify';
@@ -35,6 +36,22 @@ interface CanvasComponent {
 
 const FREE_TIER_LIMIT = 10;
 
+// ─── Component Library (#7) — drag/click-to-insert building blocks ─────────────
+// Each preset is a ready-made Tailwind block. Clicking appends it to the canvas;
+// it can also be dragged onto the canvas. Inserted blocks are fully editable.
+interface LibraryItem { type: string; name: string; icon: string; html: string; }
+const COMPONENT_LIBRARY: LibraryItem[] = [
+  { type: 'navbar', name: 'Navbar', icon: '▤', html: `<nav class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between"><span class="font-extrabold text-lg">Brand</span><div class="flex gap-6 text-sm font-semibold"><a href="#" class="hover:text-cyan-400">Home</a><a href="#" class="hover:text-cyan-400">About</a><a href="#" class="hover:text-cyan-400">Contact</a></div></nav>` },
+  { type: 'hero', name: 'Hero', icon: '★', html: `<section class="bg-gradient-to-br from-indigo-600 to-violet-700 text-white text-center py-24 px-6"><h1 class="text-5xl font-black mb-4">Build something great</h1><p class="text-lg text-white/80 mb-8 max-w-xl mx-auto">A bold hero section to introduce your product or idea.</p><button class="bg-white text-indigo-700 font-bold px-8 py-3 rounded-full">Get Started</button></section>` },
+  { type: 'button', name: 'Button', icon: '⬚', html: `<div class="p-6 text-center"><button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg transition-colors">Click Me</button></div>` },
+  { type: 'cards', name: 'Card Grid', icon: '▦', html: `<section class="py-16 px-6 bg-gray-50"><div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">${[1,2,3].map(()=>`<div class="bg-white rounded-2xl shadow-md p-6"><div class="w-12 h-12 rounded-xl bg-indigo-100 mb-4"></div><h3 class="font-bold text-lg text-gray-900 mb-2">Feature</h3><p class="text-gray-500 text-sm">Describe the value this feature brings to your users.</p></div>`).join('')}</div></section>` },
+  { type: 'form', name: 'Form', icon: '✎', html: `<section class="py-16 px-6 bg-white"><form class="max-w-md mx-auto space-y-4"><h2 class="text-2xl font-bold text-gray-900 text-center mb-2">Contact Us</h2><input class="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Your name" /><input class="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Email address" /><textarea class="w-full border border-gray-300 rounded-xl px-4 py-3" rows="4" placeholder="Message"></textarea><button class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl">Send</button></form></section>` },
+  { type: 'gallery', name: 'Image', icon: '▢', html: `<div class="p-6"><div class="aspect-video w-full max-w-2xl mx-auto rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">Image Placeholder</div></div>` },
+  { type: 'pricing', name: 'Pricing', icon: '$', html: `<section class="py-16 px-6 bg-gray-50"><div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">${['Free','Pro','Team'].map((p,i)=>`<div class="bg-white rounded-2xl shadow-md p-8 text-center ${i===1?'ring-2 ring-indigo-500':''}"><h3 class="font-bold text-xl text-gray-900">${p}</h3><p class="text-4xl font-black text-gray-900 my-4">$${i*15}</p><button class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-xl mt-4">Choose</button></div>`).join('')}</div></section>` },
+  { type: 'testimonials', name: 'Testimonial', icon: '❝', html: `<section class="py-16 px-6 bg-white text-center"><p class="text-2xl font-medium text-gray-800 max-w-2xl mx-auto italic">"This product completely transformed how our team works."</p><p class="mt-4 font-bold text-gray-900">— Alex Rivera, CEO</p></section>` },
+  { type: 'footer', name: 'Footer', icon: '▬', html: `<footer class="bg-slate-900 text-white/70 py-10 px-6 text-center"><p class="font-bold text-white mb-2">Brand</p><div class="flex justify-center gap-6 text-sm mb-4"><a href="#" class="hover:text-white">Privacy</a><a href="#" class="hover:text-white">Terms</a><a href="#" class="hover:text-white">Contact</a></div><p class="text-xs">© 2026 Brand. All rights reserved.</p></footer>` },
+];
+
 // ─── Sanitize HTML — DOMPurify, defense-in-depth before dangerouslySetInnerHTML ─
 // Server already sanitizes AI output; this re-sanitizes on render in case stale or
 // tampered canvas state reaches the DOM.
@@ -58,6 +75,9 @@ const ShareModal: React.FC<{
   const [regenerating, setRegenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [initialised, setInitialised] = useState(false);
+  // Collaborator invite (#4)
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'view' | 'edit' | 'owner'>('view');
 
   // Fetch current share state on mount
   useEffect(() => {
@@ -123,6 +143,34 @@ const ShareModal: React.FC<{
     setCopied(true);
     toast.success('Link copied to clipboard!');
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  // Share via the user's email client
+  const shareViaEmail = () => {
+    if (!shareURL) return;
+    const subject = encodeURIComponent(`Check out my Speak2Design project: ${projectTitle}`);
+    const body = encodeURIComponent(`I built this with Speak2Design — take a look:\n\n${shareURL}`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  };
+
+  // Copy the link and open GitHub Gist so the user can publish/embed it
+  const shareToGitHub = async () => {
+    if (shareURL) await navigator.clipboard.writeText(shareURL);
+    window.open('https://gist.github.com/', '_blank', 'noopener');
+    toast.success('Link copied — paste it into a new GitHub gist.');
+  };
+
+  // Draft a collaborator invite with the chosen permission level
+  const sendInvite = () => {
+    if (!inviteEmail.trim()) { toast.error('Enter an email address to invite.'); return; }
+    const roleLabel = { view: 'View only', edit: 'Can edit', owner: 'Owner' }[inviteRole];
+    const subject = encodeURIComponent(`You're invited to collaborate on "${projectTitle}"`);
+    const body = encodeURIComponent(
+      `You've been invited as "${roleLabel}" on the Speak2Design project "${projectTitle}".\n\nOpen it here:\n${shareURL ?? '(make the project public first to generate a link)'}`
+    );
+    window.open(`mailto:${encodeURIComponent(inviteEmail.trim())}?subject=${subject}&body=${body}`);
+    toast.success(`Invite drafted for ${inviteEmail.trim()} (${roleLabel})`);
+    setInviteEmail('');
   };
 
   return (
@@ -203,6 +251,57 @@ const ShareModal: React.FC<{
                   <p className="text-[11px] text-gray-400 leading-relaxed">
                     Recipients see a read-only view of the current published state.
                   </p>
+
+                  {/* Quick share channels (#4) */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button onClick={shareViaEmail}
+                      className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 transition-colors">
+                      <Mail className="w-4 h-4 text-blue-500" /> Email
+                    </button>
+                    <button onClick={shareToGitHub}
+                      className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 transition-colors">
+                      <Github className="w-4 h-4 text-gray-900" /> GitHub
+                    </button>
+                  </div>
+
+                  {/* Invite collaborators with permission levels (#4) */}
+                  <div className="pt-3 mt-1 border-t border-gray-100 space-y-2">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <UserPlus className="w-3.5 h-3.5" /> Invite Collaborators
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={e => setInviteEmail(e.target.value)}
+                        placeholder="teammate@email.com"
+                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 outline-none focus:ring-2 focus:ring-blue-400/40"
+                      />
+                      <button onClick={sendInvite}
+                        className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-xl font-bold text-sm transition-colors flex-shrink-0">
+                        Invite
+                      </button>
+                    </div>
+                    {/* Permission levels */}
+                    <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-xl">
+                      {([
+                        { id: 'view',  label: 'View Only' },
+                        { id: 'edit',  label: 'Can Edit' },
+                        { id: 'owner', label: 'Owner' },
+                      ] as const).map(r => (
+                        <button key={r.id} onClick={() => setInviteRole(r.id)}
+                          className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            inviteRole === r.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                          }`}>
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                      Sends an email invite for the selected role. Edit/Owner access activates once the collaborator signs in.
+                    </p>
+                  </div>
+
                   <button
                     onClick={regenerateLink}
                     disabled={regenerating}
@@ -1064,6 +1163,20 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
   };
 
   // ── Template Library: insert sections / new page ─────────────────────────────
+  // #7: insert a library building block (click or drag-drop) into the canvas
+  const insertLibraryComponent = (item: LibraryItem) => {
+    const comp: CanvasComponent = {
+      id: `lib_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      type: item.type,
+      name: item.name,
+      styles: {},
+      htmlContent: item.html,
+    };
+    pushNewStateToHistory([...canvasState, comp]);
+    setSelectedComponentId(comp.id);
+    toast.success(`${item.name} added to canvas`);
+  };
+
   const handleInsertTemplateSections = (sections: Template['sections']) => {
     const asComponents: CanvasComponent[] = sections.map(s => ({
       id: s.id,
@@ -1320,6 +1433,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
 
   // ── Layer Search ──────────────────────────────────────────────────────────────
   const [layerSearch, setLayerSearch] = useState('');
+  // #7: component library panel + drag state
+  const [showComponentLib, setShowComponentLib] = useState(true);
+  const [isLibDragging, setIsLibDragging] = useState(false);
 
   // ── Phase 6: Share Modal ──────────────────────────────────────────────────────
   const [showShareModal, setShowShareModal] = useState(false);
@@ -1512,11 +1628,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               {dailyRemaining as number}/day left
             </div>
           )}
-          {userTier === 'premium' && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-indigo/20 border border-brand-violet/30 rounded-lg text-brand-cyan text-xs font-bold">
-              <Crown className="w-3.5 h-3.5" /> Premium
-            </div>
-          )}
+          {/* #2: Premium status lives only beside the profile avatar in TopNavbar —
+              the duplicate badge here was removed to declutter the editor toolbar. */}
           <button onClick={handleUndoAction} disabled={historyPointer <= 0}
             className="p-2 hover:bg-white/10 disabled:opacity-30 rounded-lg text-white/60" title="Undo">
             <Undo2 className="w-4 h-4" />
@@ -1541,6 +1654,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               <ZoomIn className="w-4 h-4" />
             </button>
           </div>
+          {/* #9: quick voice toggle (full panel lives in the left sidebar) */}
+          <button
+            onClick={toggleVoiceCapture}
+            disabled={isProcessingAI}
+            aria-pressed={isListening}
+            className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${isListening ? 'text-brand-pink bg-brand-pink/15 animate-pulse' : 'text-white/40 hover:bg-white/10'}`}
+            title="Generate UI using voice commands."
+          >
+            <Mic className="w-4 h-4" />
+          </button>
           <button
             onClick={() => setTtsEnabled(p => !p)}
             className={`p-2 rounded-lg transition-colors ${ttsEnabled ? 'text-brand-cyan bg-brand-cyan/10' : 'text-white/40 hover:bg-white/10'}`}
@@ -1619,53 +1742,55 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             )}
           </div>
 
-          {/* Share button */}
+          {/* #9: Templates → Preview → Share (consistent order, equal sizing) */}
           <button
-            onClick={() => {
-              if (!projectId) { toast.error('Save the project first before sharing.'); return; }
-              setShowShareModal(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 glass text-brand-amber rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
-            title="Share project"
+            onClick={() => setShowTemplateLibrary(true)}
+            className="flex items-center gap-1.5 px-3 py-2 glass text-brand-violet rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
+            title="Start quickly using professionally designed templates."
           >
-            <Share2 className="w-4 h-4" />
-            Share
+            <LayoutTemplate className="w-4 h-4" />
+            Templates
           </button>
-
           <button
             onClick={() => {
               if (pages.length === 0) { toast.error('No pages found — save the project first.'); return; }
               setShowPreview(true);
             }}
             className="flex items-center gap-1.5 px-3 py-2 glass text-emerald-300 rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
-            title="Preview website"
+            title="Preview your website exactly as users will see it."
           >
             <Eye className="w-4 h-4" />
             Preview
           </button>
           <button
-            onClick={() => setShowTemplateLibrary(true)}
-            className="flex items-center gap-1.5 px-3 py-2 glass text-brand-violet rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
-            title="Browse template library"
+            onClick={() => {
+              if (!projectId) { toast.error('Save the project first before sharing.'); return; }
+              setShowShareModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 glass text-brand-amber rounded-lg text-sm font-bold hover:border-white/25 transition-colors"
+            title="Generate a shareable project link and collaborate with others."
           >
-            <LayoutTemplate className="w-4 h-4" />
-            Templates
+            <Share2 className="w-4 h-4" />
+            Share
           </button>
           <div className="h-6 w-px bg-white/10 mx-1" />
           <button onClick={handleSaveProject} disabled={isSaving}
-            className="flex items-center gap-2 glass text-white px-4 py-2 rounded-lg text-sm font-bold hover:border-white/25 disabled:opacity-50 transition-colors">
+            title="Save your project to the cloud"
+            className="flex items-center gap-1.5 px-3 py-2 glass text-white rounded-lg text-sm font-bold hover:border-white/25 disabled:opacity-50 transition-colors">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save
           </button>
+          {/* #5/#10: Export sized to match every other toolbar button (px-3 py-2, gap-1.5). */}
           <button
             onClick={() => {
               if (canvasState.length === 0) { toast.error('Canvas is empty — add components first.'); return; }
               setShowExportModal(true);
             }}
-            className="group relative flex items-center gap-2 overflow-hidden text-white px-4 py-2 rounded-lg text-sm font-bold shadow-[0_0_25px_-8px_rgba(99,102,241,.8)]"
+            title="Download your completed website as code"
+            className="group relative flex items-center gap-1.5 overflow-hidden text-white px-3 py-2 rounded-lg text-sm font-bold shadow-[0_0_22px_-10px_rgba(99,102,241,.8)]"
           >
             <span className="absolute inset-0 anim-gradient" style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }} />
-            <span className="relative z-10 flex items-center gap-2"><Code2 className="w-4 h-4" /> Export Code</span>
+            <span className="relative z-10 flex items-center gap-1.5"><Code2 className="w-4 h-4" /> Export</span>
           </button>
         </div>
       </div>
@@ -1694,6 +1819,67 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
                   🎙 Gemini AI will transcribe your Urdu speech.
                 </p>
               )}
+            </div>
+
+            {/* #1: Voice Command — permanent sidebar control (never scrolls with canvas) */}
+            <div>
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 ml-1">Voice Command</p>
+              <button
+                type="button"
+                aria-label={isListening ? 'Stop recording and generate' : 'Click to speak a voice command'}
+                aria-pressed={isListening}
+                onClick={toggleVoiceCapture}
+                disabled={isProcessingAI}
+                title="Generate UI using voice commands."
+                className={`group relative w-full flex items-center justify-center gap-2.5 overflow-hidden text-white px-4 py-3 rounded-2xl font-bold shadow-lg transition-transform active:scale-[0.98] disabled:opacity-70 ${
+                  isListening ? 'shadow-[0_0_35px_-8px_rgba(236,72,153,.8)]' : 'shadow-[0_0_30px_-12px_rgba(99,102,241,.8)]'
+                }`}
+              >
+                <span className="absolute inset-0 anim-gradient" style={{
+                  background: isListening
+                    ? 'linear-gradient(120deg,#ec4899,#8b5cf6,#ef4444)'
+                    : 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)'
+                }} />
+                {/* Pulsing ring while listening */}
+                {isListening && (
+                  <span className="pointer-events-none absolute inset-0 rounded-2xl animate-pulse"
+                    style={{ boxShadow: '0 0 0 3px rgba(236,72,153,.35)' }} />
+                )}
+                <span className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
+                  {isProcessingAI ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+                </span>
+                <span className="relative z-10 text-sm">
+                  {isListening ? 'Listening… click to stop' : isProcessingAI ? 'AI is thinking…' : 'Click to Speak'}
+                </span>
+              </button>
+
+              {/* Live capture waveform + transcription */}
+              <AnimatePresence>
+                {isListening && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                    className="mt-2 glass-strong gradient-border p-3 rounded-2xl text-center overflow-hidden">
+                    <div className="flex items-center justify-center gap-1.5 mb-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-pink opacity-70" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-pink" />
+                      </span>
+                      <span className="text-[9px] text-white/50 font-bold uppercase tracking-wider">
+                        Capturing — {language}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1 h-6 mb-2">
+                      {[1,2,3,4,5,6,7,8,9,10].map(i => (
+                        <motion.div key={i}
+                          animate={{ height: [6, 20, 10, 24, 8][i % 5] }}
+                          transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.08 }}
+                          className="w-1 rounded-full bg-gradient-to-t from-brand-cyan to-brand-violet"
+                        />
+                      ))}
+                    </div>
+                    {transcription && <p className="text-xs font-medium text-brand-cyan min-h-[16px] break-words">{transcription}</p>}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Clarification Alert */}
@@ -1737,6 +1923,44 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
                   </span>
                 </button>
               </form>
+            </div>
+
+            {/* #7: Component Library — click or drag a block onto the canvas */}
+            <div>
+              <button
+                onClick={() => setShowComponentLib(p => !p)}
+                className="w-full flex items-center justify-between mb-2 ml-1"
+              >
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1.5">
+                  <LayoutTemplate className="w-3 h-3" /> Components
+                </p>
+                {showComponentLib ? <ChevronUp className="w-3 h-3 text-white/40" /> : <ChevronDown className="w-3 h-3 text-white/40" />}
+              </button>
+              {showComponentLib && (
+                <>
+                  <p className="text-[10px] text-white/30 mb-2 ml-1 leading-snug">Click to add, or drag onto the canvas.</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {COMPONENT_LIBRARY.map(item => (
+                      <button
+                        key={item.name}
+                        draggable
+                        onDragStart={e => {
+                          e.dataTransfer.setData('application/x-s2d-library', item.name);
+                          e.dataTransfer.effectAllowed = 'copy';
+                          setIsLibDragging(true);
+                        }}
+                        onDragEnd={() => setIsLibDragging(false)}
+                        onClick={() => insertLibraryComponent(item)}
+                        title={`Add ${item.name}`}
+                        className="flex flex-col items-center gap-1 p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:border-brand-violet/40 transition-all cursor-grab active:cursor-grabbing group"
+                      >
+                        <span className="text-base text-white/60 group-hover:text-brand-cyan transition-colors">{item.icon}</span>
+                        <span className="text-[10px] font-bold text-white/60 group-hover:text-white transition-colors">{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Command History Log */}
@@ -1894,10 +2118,35 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
         </div>
 
         {/* ── Canvas Area ── */}
-        <div ref={canvasAreaRef} className="flex-1 relative bg-[#0f172a] overflow-auto flex flex-col p-6 items-center">
+        <div
+          ref={canvasAreaRef}
+          onDragOver={e => {
+            // Accept library-block drops (#7). Reorder drags carry no library type.
+            if (e.dataTransfer.types.includes('application/x-s2d-library')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+          onDrop={e => {
+            const name = e.dataTransfer.getData('application/x-s2d-library');
+            if (name) {
+              e.preventDefault();
+              const item = COMPONENT_LIBRARY.find(i => i.name === name);
+              if (item) insertLibraryComponent(item);
+              setIsLibDragging(false);
+            }
+          }}
+          className="flex-1 relative bg-[#0f172a] overflow-auto flex flex-col p-6 items-center"
+        >
           {isProcessingAI && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-xl flex items-center gap-2 z-30">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating UI…
+            </div>
+          )}
+          {/* #7: visual drop indicator while dragging a library block */}
+          {isLibDragging && (
+            <div className="absolute inset-3 z-30 pointer-events-none rounded-3xl border-2 border-dashed border-brand-cyan/60 bg-brand-cyan/5 flex items-center justify-center">
+              <span className="px-4 py-2 rounded-full bg-brand-cyan/20 text-brand-cyan text-sm font-bold">Drop to add component</span>
             </div>
           )}
 
@@ -2016,80 +2265,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               </div>
             )}
 
-            {/* Mic Command Center */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-              <div className="relative flex items-center justify-center">
-                {/* Pulsing concentric rings while listening */}
-                <AnimatePresence>
-                  {isListening && [0, 1, 2].map(i => (
-                    <motion.span
-                      key={i}
-                      initial={{ scale: 0.7, opacity: 0.5 }}
-                      animate={{ scale: 2.4, opacity: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.5, ease: 'easeOut' }}
-                      className="pointer-events-none absolute inset-0 rounded-full"
-                      style={{ background: 'radial-gradient(circle, rgba(236,72,153,.5), transparent 70%)' }}
-                    />
-                  ))}
-                </AnimatePresence>
-
-                <button
-                  type="button"
-                  aria-label={isListening ? 'Stop recording and generate' : 'Click to speak a voice command'}
-                  aria-pressed={isListening}
-                  onClick={toggleVoiceCapture}
-                  disabled={isProcessingAI}
-                  className={`group relative z-10 flex items-center gap-3 overflow-hidden text-white pl-4 pr-6 py-3 rounded-full font-bold shadow-2xl transition-transform active:scale-95 disabled:opacity-70 ${
-                    isListening ? 'scale-105 shadow-[0_0_50px_-8px_rgba(236,72,153,.8)]' : 'shadow-[0_0_45px_-10px_rgba(99,102,241,.8)]'
-                  }`}
-                >
-                  <span className="absolute inset-0 anim-gradient" style={{
-                    background: isListening
-                      ? 'linear-gradient(120deg,#ec4899,#8b5cf6,#ef4444)'
-                      : 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)'
-                  }} />
-                  <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
-                    {isProcessingAI
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <Mic className="w-4 h-4" />}
-                  </span>
-                  <span className="relative z-10">
-                    {isListening ? 'Listening… click to stop' : isProcessingAI ? 'AI is thinking…' : 'Click to Speak'}
-                  </span>
-                </button>
-              </div>
-            </div>
           </div>
           </div> {/* /zoom wrapper */}
-
-          {/* Voice feedback waveform */}
-          <AnimatePresence>
-            {isListening && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="mt-4 w-full max-w-2xl glass-strong gradient-border p-4 rounded-2xl text-center shadow-xl glow-cyan">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-pink opacity-70" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-pink" />
-                  </span>
-                  <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">
-                    Voice Capture Active — {language}
-                  </span>
-                </div>
-                <div className="flex items-center justify-center gap-1 h-8 mb-2">
-                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(i => (
-                    <motion.div key={i}
-                      animate={{ height: [8, 26, 12, 30, 10][i % 5] }}
-                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.08 }}
-                      className="w-1 rounded-full bg-gradient-to-t from-brand-cyan to-brand-violet"
-                    />
-                  ))}
-                </div>
-                <p className="text-sm font-medium text-brand-cyan min-h-[20px]">{transcription}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* #1: Voice control relocated to the fixed left sidebar so it never
+              scrolls away with the generated UI. The canvas now holds only content. */}
         </div>
 
         {/* ── Right Inspector ── */}

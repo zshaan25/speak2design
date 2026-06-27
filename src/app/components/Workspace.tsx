@@ -803,6 +803,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
   // Effective project id — auto-creates a project the first time Save runs without
   // one (e.g. Workspace opened from the sidebar with no project selected) (#2).
   const createdProjectIdRef = useRef<string | null>(null);
+  // Reactive mirror of the auto-created id so the UI (Share/ShareModal) updates
+  // once a brand-new project is persisted.
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const ensureProjectId = useCallback(async (): Promise<string | null> => {
     if (projectId) return projectId;
     if (createdProjectIdRef.current) return createdProjectIdRef.current;
@@ -816,11 +819,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
       const data = await res.json();
       if (data.success && data.project?._id) {
         createdProjectIdRef.current = data.project._id;
+        setCreatedProjectId(data.project._id);
         return data.project._id;
       }
     } catch { /* fall through */ }
     return null;
   }, [projectId, projectTitle, language]);
+
+  // Use this everywhere the UI needs "the project id, if one exists yet".
+  const activeProjectId = projectId ?? createdProjectId;
 
   // ── Save ─────────────────────────────────────────────────────────────────────
   const handleSaveProject = async () => {
@@ -1576,9 +1583,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
 
       {/* Share Modal */}
       <AnimatePresence>
-        {showShareModal && projectId && (
+        {showShareModal && activeProjectId && (
           <ShareModal
-            projectId={projectId}
+            projectId={activeProjectId}
             projectTitle={projectTitle}
             onClose={() => setShowShareModal(false)}
           />
@@ -1794,8 +1801,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             Preview
           </button>
           <button
-            onClick={() => {
-              if (!projectId) { toast.error('Save the project first before sharing.'); return; }
+            onClick={async () => {
+              // Auto-create the project if it doesn't exist yet, then share.
+              const pid = await ensureProjectId();
+              if (!pid) { toast.error('Could not create a project to share. Check your connection.'); return; }
               setShowShareModal(true);
             }}
             className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-brand-amber rounded-lg text-xs font-bold hover:border-white/25 transition-colors"

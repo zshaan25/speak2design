@@ -1583,9 +1583,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
         )}
       </AnimatePresence>
 
-      {/* ── Toolbar ── #3: scrolls internally on narrow screens so it never widens the page */}
-      <div className="h-14 glass border-b border-white/10 px-4 flex items-center justify-between gap-3 z-10 overflow-x-auto shrink-0">
-        <div className="flex items-center gap-3 shrink-0">
+      {/* ── Toolbar ── overflow-visible so Theme/Font dropdowns (absolute top-full) aren't clipped */}
+      <div className="h-14 glass border-b border-white/10 px-4 flex items-center justify-between gap-3 z-20 shrink-0 relative">
+        <div className="flex items-center gap-3 shrink-0 min-w-0">
           <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60">
             <ChevronLeft className="w-5 h-5" />
           </button>

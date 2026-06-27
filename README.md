@@ -10,7 +10,7 @@ Final Year Project — BS Computer Science.
 |-------|-------|
 | Frontend | React 18, Vite, TypeScript, Tailwind CSS, Radix UI, Framer Motion |
 | Backend | Node.js, Express, Mongoose (MongoDB) |
-| AI | Google **Gemini 2.0 Flash** — audio transcription + UI generation |
+| AI | **Groq** — Whisper (`whisper-large-v3`) for audio transcription + LLaMA 3.3 70B for UI generation |
 | Auth | JWT (7-day) + bcrypt password hashing |
 
 ```
@@ -24,9 +24,9 @@ backend/
 
 ## How it works
 
-1. User holds the mic and speaks a command (e.g. *"add a hero section with a dark gradient"*).
+1. User clicks the mic and speaks a command (e.g. *"add a hero section with a dark gradient"*); recording auto-stops on silence.
 2. Audio is sent to `/api/voice/transcribe-and-generate`.
-3. Gemini transcribes the audio, then generates/updates a canvas array of components.
+3. Groq Whisper transcribes the audio, then LLaMA 3.3 generates/updates a canvas array of components.
 4. AI output is **sanitized with DOMPurify** server-side and validated against an allowed component schema before being returned.
 5. Frontend renders the sanitized HTML on the canvas; user can reorder, delete, undo/redo, save, and export.
 
@@ -35,7 +35,7 @@ backend/
 ### Prerequisites
 - Node.js 18+
 - A MongoDB connection string
-- A Google Gemini API key
+- A Groq API key (free at https://console.groq.com)
 
 ### Backend
 ```bash
@@ -49,7 +49,7 @@ Required `backend/.env`:
 ```
 MONGODB_URI=<your mongodb connection string>
 JWT_SECRET=<long random string, 32+ chars>
-GEMINI_API_KEY=<your gemini api key>
+GROQ_API_KEY=<your groq api key>
 FRONTEND_URL=http://localhost:5173
 PORT=5000
 NODE_ENV=development

@@ -8,15 +8,44 @@ services:
     buildCommand: npm install
     startCommand: node server.js
     envVars:
+      # ── Core (required) ──────────────────────────────────────────────
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 5000
-      - key: MONGODB_URI
+      - key: MONGODB_URI          # MongoDB Atlas connection string
         sync: false
-      - key: JWT_SECRET
+      - key: JWT_SECRET           # long random string for signing tokens
         sync: false
-      - key: OPENAI_API_KEY
+      - key: GROQ_API_KEY         # AI: Whisper transcription + LLaMA UI generation
         sync: false
+      # ── URLs (required for CORS / OAuth / Stripe redirects) ──────────
+      - key: FRONTEND_URL         # e.g. https://speak2design.vercel.app
+        sync: false
+      - key: BACKEND_URL          # this service's public URL (OAuth callbacks)
+        sync: false
+      # ── Payments (optional — Stripe upgrade + marketplace) ───────────
       - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      # ── OAuth sign-in (optional — Google / GitHub) ───────────────────
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      # ── Password-reset email (optional — SMTP) ───────────────────────
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
         sync: false

@@ -6,8 +6,7 @@ import {
   Copy, Check, AlertCircle, RefreshCw, ArrowUp, ArrowDown, LayoutTemplate, Eye,
   ZoomIn, ZoomOut, Maximize2, Keyboard, Palette, Search, Sparkles, CloudOff,
   Share2, BookMarked, History, Type, Link, Globe, Lock, ChevronDown, ChevronUp,
-  Mail, Github, UserPlus,
-  Crown
+  Mail, Github, UserPlus,Crown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DOMPurify from 'dompurify';

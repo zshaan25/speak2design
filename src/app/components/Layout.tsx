@@ -14,7 +14,7 @@ interface LayoutProps {
 
 const LogoMark: React.FC<{ className?: string }> = ({ className = '' }) => (
   <div className={`relative flex items-center justify-center rounded-xl anim-gradient ${className}`}
-    style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }}>
+    style={{ background: 'linear-gradient(120deg,#10b981,#14b8a6,#06b6d4)' }}>
     <Mic className="text-white w-5 h-5" />
   </div>
 );
@@ -139,7 +139,7 @@ export const TopNavbar: React.FC<LayoutProps> = ({ currentPage, onNavigate, user
             <p className="text-[10px] font-bold text-brand-cyan uppercase mt-0.5">{user.tier === 'premium' ? t('premium') : t('freeAccount')}</p>
           </div>
           <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm text-white ring-2 ring-white/10 anim-gradient"
-            style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6)' }}>
+            style={{ background: 'linear-gradient(120deg,#10b981,#14b8a6)' }}>
             {user.avatar}
           </div>
         </button>
@@ -156,7 +156,7 @@ export const Annotation: React.FC<{ title: string; text: string }> = ({ title, t
         <p className="text-xs text-white/60 leading-relaxed">{text}</p>
       </div>
       <button className="w-11 h-11 rounded-full flex items-center justify-center shadow-lg glow-indigo transition-transform hover:scale-110 anim-gradient"
-        style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }}>
+        style={{ background: 'linear-gradient(120deg,#10b981,#14b8a6,#06b6d4)' }}>
         <Info className="w-5 h-5 text-white" />
       </button>
     </div>

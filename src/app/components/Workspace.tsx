@@ -1954,8 +1954,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
                   className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-brand-violet/60 resize-none"
                 />
                 <button type="submit" disabled={isProcessingAI || !textCommand.trim()}
-                  className="group relative mt-2 w-full overflow-hidden text-white py-2 rounded-xl text-xs font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-[0_0_22px_-8px_rgba(99,102,241,.8)]">
-                  <span className="absolute inset-0 anim-gradient" style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }} />
+                  className="group relative mt-2 w-full overflow-hidden text-white py-2 rounded-xl text-xs font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-[0_0_22px_-8px_rgba(16,185,129,.8)]">
+                  <span className="absolute inset-0 anim-gradient" style={{ background: 'linear-gradient(120deg,#10b981,#14b8a6,#06b6d4)' }} />
                   <span className="relative z-10 inline-flex items-center gap-2">
                     {isProcessingAI
                       ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processing…</>
@@ -2442,7 +2442,7 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
                 <button
                   onClick={handleRegenerate}
                   disabled={isRegenerating || !regenPrompt.trim() || !projectId}
-                  className="mt-2 w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-brand-amber to-brand-pink text-white font-bold py-2 rounded-xl text-xs transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-2 w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-bold py-2 rounded-xl text-xs transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isRegenerating
                     ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Regenerating…</>

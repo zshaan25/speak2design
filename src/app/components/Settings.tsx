@@ -661,7 +661,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ onBack, user, onUserUp
 
         {/* User Profile Summary */}
         <div className="p-10 bg-white/5 border-b border-white/10 flex items-center gap-6">
-          <div className="w-20 h-20 bg-gradient-to-r from-brand-indigo to-brand-violet text-white rounded-[32px] flex items-center justify-center font-bold text-3xl shadow-lg ring-4 ring-white">
+          <div className="w-20 h-20 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white rounded-[32px] flex items-center justify-center font-bold text-3xl shadow-lg ring-4 ring-white">
             {currentUser.avatar || currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
           </div>
           <div>

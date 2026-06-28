@@ -40,7 +40,7 @@ const CreateWebsiteModal: React.FC<{ onClose: () => void; onNewProject: (prompt?
                   className="text-[11px] px-2.5 py-1 rounded-full glass text-white/60 hover:text-white hover:border-white/25 transition-all">{ex}</button>
               ))}
             </div>
-            <GradientButton full onClick={() => { onClose(); onNewProject(prompt); }} disabled={!prompt.trim()} className="mt-3">
+            <GradientButton tone="green" full onClick={() => { onClose(); onNewProject(prompt); }} disabled={!prompt.trim()} className="mt-3">
               <Wand2 className="w-4 h-4" /> Generate with AI <ArrowRight className="w-4 h-4" />
             </GradientButton>
           </div>
@@ -330,7 +330,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
                     </select>
                   </div>
                 </div>
-                <GradientButton full onClick={handlePublishProject} disabled={publishing}>
+                <GradientButton tone="green" full onClick={handlePublishProject} disabled={publishing}>
                   {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                   {publishing ? 'Publishing…' : 'Publish'}
                 </GradientButton>
@@ -371,7 +371,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
             <Trash2 className="w-5 h-5" /> Empty Trash
           </button>
         ) : (
-          <GradientButton onClick={() => setShowCreate(true)}><Plus className="w-5 h-5" /> New Project</GradientButton>
+          <GradientButton tone="green" onClick={() => setShowCreate(true)}><Plus className="w-5 h-5" /> New Project</GradientButton>
         )}
       </div>
 
@@ -525,7 +525,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
             {searchQuery ? 'Try a different search term.' : 'Create your first voice-powered design project.'}
           </p>
           {!searchQuery && (
-            <GradientButton onClick={() => setShowCreate(true)}><Plus className="w-5 h-5" /> Create First Project</GradientButton>
+            <GradientButton tone="green" onClick={() => setShowCreate(true)}><Plus className="w-5 h-5" /> Create First Project</GradientButton>
           )}
         </div>
       ) : (

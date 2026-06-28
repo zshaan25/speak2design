@@ -1802,7 +1802,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               }
               setShowPreview(true);
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-emerald-300 rounded-lg text-xs font-bold hover:border-white/25 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-emerald-400 rounded-lg text-xs font-bold hover:border-white/25 transition-colors"
             title="Preview your website exactly as users will see it."
           >
             <Eye className="w-4 h-4" />

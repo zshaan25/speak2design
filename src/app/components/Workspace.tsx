@@ -364,7 +364,9 @@ const ExportModal: React.FC<{
     const spacingPad: Record<string, string> = { compact: '0.25rem 0', normal: '0.75rem 0', spacious: '2.5rem 0' };
     const width = widthPct[styles.width] || '100%';
     const align = styles.align || 'center';
-    const parts = [`width:${width}`, `padding:${spacingPad[styles.spacing] || '0.75rem 0'}`];
+    // Default to flush (0) when spacing is unset — matches the canvas, where
+    // sections stack seamlessly. Each AI section already has its own padding.
+    const parts = [`width:${width}`, `padding:${spacingPad[styles.spacing] || '0'}`];
     if (width !== '100%') {
       if (align === 'center') parts.push('margin-left:auto', 'margin-right:auto');
       else if (align === 'right') parts.push('margin-left:auto');
@@ -386,6 +388,7 @@ const ExportModal: React.FC<{
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${projectTitle}</title>
   <script src="https://cdn.tailwindcss.com"><\/script>${gfontsLink}
+  <style>*{box-sizing:border-box;}body{margin:0;}</style>
 </head>
 <body${fontBodyStyle}>
 ${canvas.map(c => `  <!-- ${c.name} -->\n  <div style="${exportWrapperStyle(c.styles)}">\n    ${c.htmlContent.trim()}\n  </div>`).join('\n\n')}

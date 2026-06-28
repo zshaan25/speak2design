@@ -54,7 +54,8 @@ const buildPageHTML = (
 
   const wrapperStyle = (styles: Record<string, string> = {}): string => {
     const w = WIDTH_PCT[styles.width] || '100%';
-    const parts = [`width:${w}`, `padding:${SPACING_PAD[styles.spacing] || '0.75rem 0'}`];
+    // Flush by default (matches the canvas) so sections don't get extra gaps.
+    const parts = [`width:${w}`, `padding:${SPACING_PAD[styles.spacing] || '0'}`];
     if (w !== '100%') {
       const align = styles.align || 'center';
       if (align === 'center') parts.push('margin-left:auto', 'margin-right:auto');

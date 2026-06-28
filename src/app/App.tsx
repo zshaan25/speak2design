@@ -23,6 +23,7 @@ export default function App() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('speak2design_token'));
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [checkoutCart, setCheckoutCart] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
   const [publicShareToken, setPublicShareToken] = useState<string | null>(null);
@@ -209,12 +210,21 @@ export default function App() {
   };
 
   const handleCheckout = (template: any) => {
-    setSelectedTemplate(template); setCurrentPage('checkout');
+    setCheckoutCart([]); setSelectedTemplate(template); setCurrentPage('checkout');
+  };
+
+  // Cart checkout — route the whole cart through the payment page.
+  const handleCheckoutCart = (cart: any[]) => {
+    if (!cart || cart.length === 0) return;
+    setSelectedTemplate(null); setCheckoutCart(cart); setCurrentPage('checkout');
   };
 
   const handleConfirmPurchase = () => {
+    // Clear the persisted cart after a successful order.
+    try { localStorage.removeItem('speak2design_cart'); } catch { /* ignore */ }
+    setCheckoutCart([]); setSelectedTemplate(null);
     setShowPurchaseSuccess(true); setCurrentPage('dashboard');
-    toast.success('Template purchased successfully!');
+    toast.success('Order complete — added to your library!');
   };
 
   const handleUserUpdate = (updatedUser: any) => {
@@ -247,9 +257,9 @@ export default function App() {
       case 'workspace':
         return <Workspace projectId={selectedProjectId} onBack={() => setCurrentPage('dashboard')} initialPrompt={initialPrompt} />;
       case 'marketplace':
-        return <Marketplace onCheckout={handleCheckout} onBack={() => setCurrentPage('dashboard')} onOpenProject={handleSelectProject} />;
+        return <Marketplace onCheckout={handleCheckout} onCheckoutCart={handleCheckoutCart} onBack={() => setCurrentPage('dashboard')} onOpenProject={handleSelectProject} />;
       case 'checkout':
-        return <Checkout template={selectedTemplate} onConfirm={handleConfirmPurchase} onBack={() => setCurrentPage('marketplace')} />;
+        return <Checkout template={selectedTemplate} cart={checkoutCart} onConfirm={handleConfirmPurchase} onBack={() => setCurrentPage('marketplace')} />;
       case 'settings':
         return (
           <SettingsScreen

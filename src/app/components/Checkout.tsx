@@ -7,23 +7,47 @@ const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:500
 const STRIPE_PK = (import.meta as any).env?.VITE_STRIPE_PK || '';
 
 interface CheckoutProps {
-  template: any;
+  template?: any;
+  /** When set, checkout runs in multi-item cart mode. */
+  cart?: any[];
   onConfirm: () => void;
   onBack: () => void;
 }
 
-export const Checkout: React.FC<CheckoutProps> = ({ template, onConfirm, onBack }) => {
+export const Checkout: React.FC<CheckoutProps> = ({ template, cart, onConfirm, onBack }) => {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'easypaisa' | 'jazzcash'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const isCart = Array.isArray(cart) && cart.length > 0;
+  const items = isCart ? cart! : (template ? [template] : []);
   const templateId = template?._id || template?.id;
-  const isFree = !template?.price || template.price === 0;
+  const cartTotal = items.reduce((s, t) => s + (t?.price || 0), 0);
+  const isFree = isCart ? cartTotal === 0 : (!template?.price || template.price === 0);
 
   const handleConfirm = async () => {
     setIsProcessing(true);
     const token = localStorage.getItem('speak2design_token');
 
     try {
+      // Cart mode — simulate the chosen payment, then bulk-add to the library.
+      if (isCart) {
+        if (paymentMethod !== 'card' || !isFree) await new Promise(r => setTimeout(r, 1300));
+        const res = await fetch(`${API_BASE}/api/marketplace/cart/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ templateIds: items.map(t => t._id || t.id) }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success(data.message || 'Order complete — added to your library!');
+          onConfirm();
+        } else {
+          toast.error(data.message || 'Checkout failed.');
+        }
+        setIsProcessing(false);
+        return;
+      }
+
       // Free template — call purchase endpoint directly.
       if (isFree) {
         const res = await fetch(`${API_BASE}/api/marketplace/purchase/${templateId}`, {
@@ -190,41 +214,62 @@ export const Checkout: React.FC<CheckoutProps> = ({ template, onConfirm, onBack 
           <div className="glass-strong gradient-border rounded-3xl p-8 sticky top-24">
             <h2 className="text-xl font-bold mb-6 text-white">Order Summary</h2>
 
-            <div className="flex flex-col gap-6 mb-8 pb-8 border-b border-white/10">
-              <div className="flex gap-4">
-                <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-inner bg-gray-100 flex-shrink-0">
-                  <img
-                    src={template?.imageUrl || '/previews/generic.svg'}
-                    alt={`${template?.title || 'Template'} preview`}
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/previews/generic.svg'; }}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div>
-                  <h4 className="font-bold text-white leading-tight mb-1">{template?.title || 'Template'}</h4>
-                  <p className="text-sm text-white/50">by {template?.author || template?.authorName || 'Creator'}</p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <Star className="w-3 h-3 text-amber-500 fill-current" />
-                    <span className="text-xs font-bold text-white/60">{template?.rating || '4.8'}</span>
+            <div className="flex flex-col gap-4 mb-8 pb-8 border-b border-white/10">
+              {isCart ? (
+                <>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{items.length} item{items.length > 1 ? 's' : ''}</p>
+                  {items.map((it) => (
+                    <div key={it._id || it.id} className="flex gap-3 items-center">
+                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                        <img src={it.imageUrl || '/previews/generic.svg'} alt={it.title}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/previews/generic.svg'; }}
+                          className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-white text-sm leading-tight truncate">{it.title}</h4>
+                      </div>
+                      <span className="text-sm font-bold text-white flex-shrink-0">{(it.price || 0) === 0 ? 'Free' : `Rs ${(it.price || 0).toLocaleString()}`}</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-4">
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-inner bg-gray-100 flex-shrink-0">
+                      <img
+                        src={template?.imageUrl || '/previews/generic.svg'}
+                        alt={`${template?.title || 'Template'} preview`}
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/previews/generic.svg'; }}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white leading-tight mb-1">{template?.title || 'Template'}</h4>
+                      <p className="text-sm text-white/50">by {template?.author || template?.authorName || 'Creator'}</p>
+                      <div className="flex items-center gap-1 mt-2">
+                        <Star className="w-3 h-3 text-amber-500 fill-current" />
+                        <span className="text-xs font-bold text-white/60">{template?.rating || '4.8'}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <ul className="space-y-2">
-                {['Fully Responsive Design', 'React Components', 'Tailwind CSS', 'Commercial License'].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-xs text-white/60">
-                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
+                  <ul className="space-y-2">
+                    {['Fully Responsive Design', 'React Components', 'Tailwind CSS', 'Commercial License'].map((item) => (
+                      <li key={item} className="flex items-center gap-2 text-xs text-white/60">
+                        <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </div>
 
             <div className="space-y-3 mb-8">
               <div className="flex justify-between text-sm text-white/50">
                 <span>Subtotal:</span>
                 <span className="font-bold text-white">
-                  {isFree ? 'Free' : `Rs ${(template?.price || 0).toLocaleString()}`}
+                  {isFree ? 'Free' : `Rs ${cartTotal.toLocaleString()}`}
                 </span>
               </div>
               <div className="flex justify-between text-sm text-white/50">
@@ -238,9 +283,9 @@ export const Checkout: React.FC<CheckoutProps> = ({ template, onConfirm, onBack 
                     <p className="text-2xl font-black text-green-600">Free</p>
                   ) : (
                     <>
-                      <p className="text-2xl font-black text-gradient">Rs {(template?.price || 0).toLocaleString()}</p>
+                      <p className="text-2xl font-black text-gradient">Rs {cartTotal.toLocaleString()}</p>
                       <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">
-                        ~ ${((template?.price || 0) / 280).toFixed(0)} USD
+                        ~ ${(cartTotal / 280).toFixed(0)} USD
                       </p>
                     </>
                   )}

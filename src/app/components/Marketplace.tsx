@@ -21,12 +21,15 @@ const previewSrc = (t: any): string =>
 
 interface MarketplaceProps {
   onCheckout: (template: any) => void;
+  onCheckoutCart?: (cart: any[]) => void;
   onBack: () => void;
   onOpenProject?: (projectId: string) => void;
 }
 
-export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, onOpenProject }) => {
-  const [view, setView] = useState<'buy' | 'sell'>('buy');
+export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckoutCart, onBack, onOpenProject }) => {
+  const [view, setView] = useState<'buy' | 'library' | 'sell'>('buy');
+  const [library, setLibrary] = useState<any[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
   const [currency, setCurrency] = useState<'PKR' | 'USD'>('PKR');
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +46,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
     try { return JSON.parse(localStorage.getItem('speak2design_cart') || '[]'); } catch { return []; }
   });
   const [showCart, setShowCart] = useState(false);
-  const [checkingOut, setCheckingOut] = useState(false);
   useEffect(() => { try { localStorage.setItem('speak2design_cart', JSON.stringify(cart)); } catch { /* ignore */ } }, [cart]);
 
   const cartId = (t: any) => t._id || t.id;
@@ -55,28 +57,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
   };
   const removeFromCart = (id: string) => setCart(prev => prev.filter(c => cartId(c) !== id));
   const cartTotal = cart.reduce((s, c) => s + (c.price || 0), 0);
-
-  const handleCartCheckout = async () => {
-    if (cart.length === 0) return;
-    setCheckingOut(true);
-    try {
-      const token = localStorage.getItem('speak2design_token');
-      const res = await fetch(`${API_BASE}/api/marketplace/cart/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ templateIds: cart.map(cartId) }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(data.message || 'Order complete — added to your library!');
-        setCart([]);
-        setShowCart(false);
-      } else {
-        toast.error(data.message || 'Checkout failed.');
-      }
-    } catch { toast.error('Could not reach the server.'); }
-    finally { setCheckingOut(false); }
-  };
 
   const loadTier = async () => {
     try {
@@ -157,7 +137,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
     finally { setUnpublishingId(null); }
   };
 
-  useEffect(() => { fetchTemplates(); loadTier(); fetchMyTemplates(); }, []);
+  const fetchLibrary = async () => {
+    setLibraryLoading(true);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/marketplace/library`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setLibrary(data.templates);
+    } catch { /* non-fatal */ }
+    finally { setLibraryLoading(false); }
+  };
+
+  useEffect(() => { fetchTemplates(); loadTier(); fetchMyTemplates(); fetchLibrary(); }, []);
+  // Refresh the library whenever the user switches to that tab.
+  useEffect(() => { if (view === 'library') fetchLibrary(); }, [view]);
 
   const [usingId, setUsingId] = useState<string | null>(null);
   // Open a template as an editable project (#14).
@@ -267,11 +260,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
                   <span className="text-sm text-white/60">Total</span>
                   <span className="text-xl font-black">{formatPrice(cartTotal)}</span>
                 </div>
-                <GradientButton full onClick={handleCartCheckout} disabled={checkingOut}>
-                  {checkingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
-                  {checkingOut ? 'Processing…' : 'Checkout'}
+                <GradientButton full onClick={() => { setShowCart(false); onCheckoutCart?.(cart); }}>
+                  <ShoppingCart className="w-4 h-4" /> Proceed to Checkout
                 </GradientButton>
-                <p className="text-[11px] text-white/35 text-center">Items are added straight to your library.</p>
+                <p className="text-[11px] text-white/35 text-center">Review payment & confirm on the next step.</p>
               </div>
             )}
           </motion.div>
@@ -294,12 +286,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
           </div>
         </div>
         <div className="flex items-center gap-1.5 glass p-1.5 rounded-2xl">
-          {(['buy', 'sell'] as const).map(v => (
+          {(['buy', 'library', 'sell'] as const).map(v => (
             <button key={v} onClick={() => setView(v)}
-              className={`px-6 py-2.5 rounded-xl font-bold transition-all ${
+              className={`px-5 py-2.5 rounded-xl font-bold transition-all ${
                 view === v ? 'text-white bg-white/10 glow-indigo' : 'text-white/45 hover:text-white'
               }`}>
-              {v === 'buy' ? 'Buy Templates' : 'Sell Your Design'}
+              {v === 'buy' ? 'Buy Templates' : v === 'library' ? 'My Library' : 'Sell Your Design'}
             </button>
           ))}
         </div>
@@ -426,6 +418,43 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
                         )}
                       </div>
                     </div>
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      ) : view === 'library' ? (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          {libraryLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1,2,3].map(i => <div key={i} className="glass rounded-[32px] h-80 animate-pulse" />)}
+            </div>
+          ) : library.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-20 h-20 glass rounded-3xl flex items-center justify-center mb-6 glow-indigo">
+                <Package className="w-10 h-10 text-brand-cyan" />
+              </div>
+              <h3 className="font-display text-xl font-bold text-white mb-2">Your library is empty</h3>
+              <p className="text-white/45 mb-6">Templates you buy or add appear here, ready to open and edit.</p>
+              <GradientButton onClick={() => setView('buy')}><ShoppingCart className="w-5 h-5" /> Browse Templates</GradientButton>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {library.map(tpl => (
+                <GlassCard key={tpl._id || tpl.id} hover gradientBorder className="group overflow-hidden rounded-[32px]">
+                  <div className="h-48 relative overflow-hidden bg-white/5">
+                    <img src={previewSrc(tpl)} alt={tpl.title} loading="lazy"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/previews/generic.svg'; }}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <div className="absolute top-4 right-4 px-3 py-1 bg-emerald-500/80 backdrop-blur-md rounded-full text-white text-[10px] font-bold uppercase tracking-wider">Owned</div>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="font-display font-bold text-lg text-white mb-1 truncate group-hover:text-brand-cyan transition-colors">{tpl.title}</h3>
+                    <p className="text-white/45 text-xs mb-5">Added {tpl.purchasedAt ? new Date(tpl.purchasedAt).toLocaleDateString() : 'recently'}</p>
+                    <GradientButton full onClick={() => handleUseTemplate(tpl)} disabled={usingId === (tpl._id || tpl.id)}>
+                      {usingId === (tpl._id || tpl.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />} Open & Edit
+                    </GradientButton>
                   </div>
                 </GlassCard>
               ))}

@@ -7,6 +7,7 @@ import {
   createCheckoutSession,
   constructWebhookEvent,
 } from '../services/stripe.js';
+import { createNotification } from './notificationController.js';
 
 // ─── Demo template seeding ────────────────────────────────────────────────────
 // Re-adds curated starter templates so a fresh database isn't an empty marketplace.
@@ -168,6 +169,12 @@ export const publishTemplate = async (req, res) => {
       );
     }
 
+    await createNotification(seller._id, {
+      type: 'publish',
+      title: 'Template published',
+      message: `"${title}" is now live on the marketplace.`,
+    });
+
     return res.status(201).json({ success: true, message: 'Template published successfully!', template });
   } catch (err) {
     console.error('>>> Publish template error:', err);
@@ -295,10 +302,65 @@ export const purchaseTemplate = async (req, res) => {
     await buyer.save();
     await Template.findByIdAndUpdate(template._id, { $inc: { downloads: 1 } });
 
+    await createNotification(buyer._id, {
+      type: 'purchase',
+      title: 'Added to your library',
+      message: `"${template.title}" is now in your library.`,
+    });
+    if (template.sellerId) {
+      await createNotification(template.sellerId, {
+        type: 'sale',
+        title: 'Your template was downloaded',
+        message: `"${template.title}" was added by another user.`,
+      });
+    }
+
     return res.status(200).json({ success: true, message: 'Template added to your library!' });
   } catch (err) {
     console.error('>>> Purchase template error:', err);
     return res.status(500).json({ success: false, message: 'Failed to process purchase.' });
+  }
+};
+
+// POST /api/marketplace/cart/checkout — bulk add cart items to the library.
+// Simulated payment (the app already falls back to simulated payments when Stripe
+// isn't configured); fine for the marketplace demo. Body: { templateIds: [] }.
+export const checkoutCart = async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.templateIds) ? req.body.templateIds : [];
+    if (ids.length === 0) return res.status(400).json({ success: false, message: 'Cart is empty.' });
+
+    const buyer = await User.findById(req.user._id);
+    const templates = await Template.find({ _id: { $in: ids }, isActive: true });
+
+    let added = 0;
+    for (const template of templates) {
+      const owns = buyer.purchasedTemplates.some(p => p.templateId?.toString() === template._id.toString());
+      if (owns) continue;
+      buyer.purchasedTemplates.push({ templateId: template._id, purchasedAt: new Date() });
+      if (!buyer.ownedTemplates.includes(template._id)) buyer.ownedTemplates.push(template._id);
+      added++;
+      await Template.findByIdAndUpdate(template._id, { $inc: { downloads: 1 } });
+      if (template.sellerId) {
+        await createNotification(template.sellerId, {
+          type: 'sale',
+          title: 'Your template sold',
+          message: `"${template.title}" was purchased.`,
+        });
+      }
+    }
+    await buyer.save();
+
+    await createNotification(buyer._id, {
+      type: 'purchase',
+      title: 'Order complete',
+      message: `${added} template${added !== 1 ? 's' : ''} added to your library.`,
+    });
+
+    return res.status(200).json({ success: true, added, message: `${added} item(s) added to your library.` });
+  } catch (err) {
+    console.error('>>> Cart checkout error:', err);
+    return res.status(500).json({ success: false, message: 'Checkout failed.' });
   }
 };
 

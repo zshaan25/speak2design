@@ -19,6 +19,7 @@ import designRoutes      from './routes/designs.js';
 import marketplaceRoutes from './routes/marketplaceRoutes.js';
 import pageRoutes        from './routes/pageRoutes.js';
 import dashboardRoutes   from './routes/dashboard.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use('/api/projects',    projectRoutes);
 app.use('/api/designs',     designRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/dashboard',   dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
 // Page routes mounted at /api so full path is /api/projects/:id/pages/…
 app.use('/api',             pageRoutes);
 

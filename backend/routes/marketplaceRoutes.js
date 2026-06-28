@@ -10,6 +10,7 @@ import {
   unpublishTemplate,
   reseedTemplates,
   createProjectFromTemplate,
+  checkoutCart,
 } from '../controllers/marketplaceController.js';
 
 const router = express.Router();
@@ -29,6 +30,7 @@ router.post('/publish',           requireAuthentication, publishTemplate);
 router.delete('/unpublish/:id',   requireAuthentication, unpublishTemplate);
 
 // ─── Buyer actions ────────────────────────────────────────────────────────────
+router.post('/cart/checkout',     requireAuthentication, checkoutCart);
 router.post('/checkout/:id',      requireAuthentication, createCheckoutSessionHandler);
 router.post('/purchase/:id',      requireAuthentication, purchaseTemplate);
 router.post('/:id/use',           requireAuthentication, createProjectFromTemplate);

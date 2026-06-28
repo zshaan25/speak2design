@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, Clock, Globe, Trash2, CheckCircle2, FolderOpen, Mic, LayoutTemplate, ShoppingBag, Star, RotateCcw, Sparkles, Wand2, X, ArrowRight, Archive } from 'lucide-react';
+import { Plus, Search, Clock, Globe, Trash2, CheckCircle2, FolderOpen, Mic, LayoutTemplate, ShoppingBag, Star, RotateCcw, Sparkles, Wand2, X, ArrowRight, Archive, Upload, Loader2, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { GlassCard } from '../design/GlassCard';
 import { GradientButton } from '../design/GradientButton';
@@ -112,6 +112,48 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
   const [langFilter, setLangFilter] = useState<'All' | 'English' | 'Urdu'>('All');
   const [showCreate, setShowCreate] = useState(false);
   const [templateSearch, setTemplateSearch] = useState('');
+  // Publish-a-project-to-marketplace modal
+  const [publishTarget, setPublishTarget] = useState<any | null>(null);
+  const [publishForm, setPublishForm] = useState({ title: '', description: '', price: '0', language: 'English' });
+  const [publishing, setPublishing] = useState(false);
+
+  const openPublish = (e: React.MouseEvent, project: any) => {
+    e.stopPropagation();
+    setPublishForm({ title: project.title || 'My Template', description: '', price: '0', language: project.language || 'English' });
+    setPublishTarget(project);
+  };
+
+  const handlePublishProject = async () => {
+    if (!publishTarget) return;
+    if (!publishForm.title.trim() || !publishForm.description.trim()) { toast.error('Add a title and description.'); return; }
+    setPublishing(true);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/marketplace/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          designId: publishTarget._id,
+          title: publishForm.title.trim(),
+          description: publishForm.description.trim(),
+          price: Number(publishForm.price) || 0,
+          language: publishForm.language,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Published to the marketplace!');
+        setPublishTarget(null);
+      } else if (res.status === 403 && data.premiumRequired) {
+        toast.error('Publishing is a Premium feature.');
+        setPublishTarget(null);
+        onNavigate?.('settings');
+      } else {
+        toast.error(data.message || 'Publish failed.');
+      }
+    } catch { toast.error('Could not reach the server.'); }
+    finally { setPublishing(false); }
+  };
 
   useEffect(() => {
     if (showSuccess) {
@@ -246,6 +288,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
           />
         )}
       </AnimatePresence>
+
+      {/* Publish project → marketplace modal */}
+      <AnimatePresence>
+        {publishTarget && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+              className="glass-strong gradient-border rounded-3xl w-full max-w-lg text-white overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
+                <h3 className="font-display text-lg font-bold flex items-center gap-2"><Upload className="w-5 h-5 text-brand-violet" /> Publish to Marketplace</h3>
+                <button onClick={() => setPublishTarget(null)} className="p-2 hover:bg-white/10 rounded-xl text-white/60"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-5 space-y-4">
+                <p className="text-xs text-white/50">Publishing your design "{publishTarget.title}" lists it on the marketplace for others. Premium accounts only.</p>
+                <div>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-1.5">Title</label>
+                  <input value={publishForm.title} onChange={e => setPublishForm(f => ({ ...f, title: e.target.value }))}
+                    className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-brand-violet/60" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-1.5">Description</label>
+                  <textarea rows={3} value={publishForm.description} onChange={e => setPublishForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="What's this template for?"
+                    className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-brand-violet/60 resize-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-1.5">Price (PKR)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <input type="number" min="0" value={publishForm.price} onChange={e => setPublishForm(f => ({ ...f, price: e.target.value }))}
+                        className="w-full pl-9 pr-3 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-brand-violet/60" />
+                    </div>
+                    <p className="text-[10px] text-white/30 mt-1">0 = free</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-1.5">Language</label>
+                    <select value={publishForm.language} onChange={e => setPublishForm(f => ({ ...f, language: e.target.value }))}
+                      className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-brand-violet/60 [&>option]:text-gray-900">
+                      <option>English</option><option>Urdu</option><option>Bilingual</option>
+                    </select>
+                  </div>
+                </div>
+                <GradientButton full onClick={handlePublishProject} disabled={publishing}>
+                  {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  {publishing ? 'Publishing…' : 'Publish'}
+                </GradientButton>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {visibleSuccess && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
@@ -315,8 +408,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
       {filter === 'all' && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
           {[
-            { label: 'New voice project', icon: Mic, onClick: () => onNewProject(), tint: 'from-brand-indigo to-brand-violet' },
-            { label: 'Browse marketplace', icon: ShoppingBag, onClick: () => onNavigate?.('marketplace'), tint: 'from-brand-cyan to-brand-teal' },
+            { label: 'New Voice Project', icon: Mic, onClick: () => onNewProject(), tint: 'from-brand-indigo to-brand-violet' },
+            { label: 'Browse Marketplace', icon: ShoppingBag, onClick: () => onNavigate?.('marketplace'), tint: 'from-brand-cyan to-brand-teal' },
             { label: 'Upgrade to Premium', icon: LayoutTemplate, onClick: () => onNavigate?.('settings'), tint: 'from-brand-amber to-brand-pink' },
           ].map(qa => (
             <button key={qa.label} onClick={qa.onClick}
@@ -458,6 +551,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
                     <button onClick={(e) => handleRestore(e, project._id)} title="Restore"
                       className="p-2 bg-black/25 backdrop-blur-md rounded-lg text-white hover:bg-emerald-500/60 transition-colors">
                       <RotateCcw className="w-4 h-4" />
+                    </button>
+                  )}
+                  {/* Publish to marketplace — only for non-empty projects, not in Trash */}
+                  {!isTrash && (project.canvasState || []).length > 0 && (
+                    <button onClick={(e) => openPublish(e, project)} title="Publish to marketplace"
+                      className="p-2 bg-black/25 backdrop-blur-md rounded-lg text-white hover:bg-violet-500/60 transition-colors">
+                      <Upload className="w-4 h-4" />
                     </button>
                   )}
                   {/* Archive (or unarchive in the Archived view) — not shown in Trash */}

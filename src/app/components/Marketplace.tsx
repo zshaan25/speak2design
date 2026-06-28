@@ -38,6 +38,46 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
   const [myTemplates, setMyTemplates] = useState<any[]>([]);
   const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
 
+  // ── Cart (persisted in localStorage) ───────────────────────────────────────
+  const [cart, setCart] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem('speak2design_cart') || '[]'); } catch { return []; }
+  });
+  const [showCart, setShowCart] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  useEffect(() => { try { localStorage.setItem('speak2design_cart', JSON.stringify(cart)); } catch { /* ignore */ } }, [cart]);
+
+  const cartId = (t: any) => t._id || t.id;
+  const inCart = (t: any) => cart.some(c => cartId(c) === cartId(t));
+  const addToCart = (t: any) => {
+    if (inCart(t)) { toast.info('Already in cart.'); return; }
+    setCart(prev => [...prev, { _id: cartId(t), title: t.title, price: t.price || 0, imageUrl: t.imageUrl }]);
+    toast.success(`"${t.title}" added to cart.`);
+  };
+  const removeFromCart = (id: string) => setCart(prev => prev.filter(c => cartId(c) !== id));
+  const cartTotal = cart.reduce((s, c) => s + (c.price || 0), 0);
+
+  const handleCartCheckout = async () => {
+    if (cart.length === 0) return;
+    setCheckingOut(true);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/marketplace/cart/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ templateIds: cart.map(cartId) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || 'Order complete — added to your library!');
+        setCart([]);
+        setShowCart(false);
+      } else {
+        toast.error(data.message || 'Checkout failed.');
+      }
+    } catch { toast.error('Could not reach the server.'); }
+    finally { setCheckingOut(false); }
+  };
+
   const loadTier = async () => {
     try {
       const token = localStorage.getItem('speak2design_token');
@@ -182,8 +222,67 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
     finally { setIsPublishing(false); }
   };
 
+  const CartDrawer = () => (
+    <AnimatePresence>
+      {showCart && (
+        <div className="fixed inset-0 z-[60] flex justify-end">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCart(false)} />
+          <motion.div initial={{ x: 400 }} animate={{ x: 0 }} exit={{ x: 400 }} transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+            className="relative w-full max-w-md h-full glass-strong border-l border-white/10 flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+              <h3 className="font-display font-bold text-white text-lg flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-brand-cyan" /> Cart ({cart.length})
+              </h3>
+              <button onClick={() => setShowCart(false)} className="p-2 hover:bg-white/10 rounded-xl text-white/60">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {cart.length === 0 ? (
+                <div className="py-20 text-center text-white/40">
+                  <ShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm">Your cart is empty.</p>
+                </div>
+              ) : cart.map(item => (
+                <div key={item._id} className="flex items-center gap-3 p-3 glass rounded-2xl">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 flex-shrink-0">
+                    <img src={item.imageUrl || '/previews/generic.svg'} alt={item.title}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/previews/generic.svg'; }}
+                      className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{item.title}</p>
+                    <p className="text-xs text-white/50">{formatPrice(item.price || 0)}</p>
+                  </div>
+                  <button onClick={() => removeFromCart(item._id)} className="p-2 text-white/40 hover:text-rose-400 rounded-lg transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {cart.length > 0 && (
+              <div className="p-5 border-t border-white/10 space-y-3">
+                <div className="flex items-center justify-between text-white">
+                  <span className="text-sm text-white/60">Total</span>
+                  <span className="text-xl font-black">{formatPrice(cartTotal)}</span>
+                </div>
+                <GradientButton full onClick={handleCartCheckout} disabled={checkingOut}>
+                  {checkingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+                  {checkingOut ? 'Processing…' : 'Checkout'}
+                </GradientButton>
+                <p className="text-[11px] text-white/35 text-center">Items are added straight to your library.</p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
     <div className="pt-24 pb-12 px-8 max-w-7xl mx-auto min-h-screen">
+      <CartDrawer />
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60">
@@ -213,8 +312,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
             <option value="PKR">PKR</option>
             <option value="USD">USD</option>
           </select>
-          <button className="relative p-3 glass rounded-xl text-white/70 hover:text-white hover:border-white/25 transition-all">
+          <button onClick={() => setShowCart(true)}
+            title="View cart"
+            className="relative p-3 glass rounded-xl text-white/70 hover:text-white hover:border-white/25 transition-all">
             <ShoppingCart className="w-5 h-5" />
+            {cart.length > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-brand-pink text-[10px] font-black text-white ring-2 ring-[#0b1120]">
+                {cart.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -296,17 +402,25 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onBack, on
                       </div>
                       <div className="flex items-center gap-2">
                         {(!tpl.price || tpl.price === 0) ? (
-                          <GradientButton onClick={() => handleUseTemplate(tpl)} disabled={usingId === (tpl._id || tpl.id)} className="!px-5 !py-2.5">
-                            {usingId === (tpl._id || tpl.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />} Use & Edit
-                          </GradientButton>
+                          <>
+                            <button onClick={() => addToCart(tpl)}
+                              title={inCart(tpl) ? 'In cart' : 'Add to cart'}
+                              className={`p-2.5 glass rounded-xl transition-all ${inCart(tpl) ? 'text-brand-pink' : 'text-white/80 hover:text-white hover:border-white/25'}`}>
+                              <ShoppingCart className="w-4 h-4" />
+                            </button>
+                            <GradientButton onClick={() => handleUseTemplate(tpl)} disabled={usingId === (tpl._id || tpl.id)} className="!px-5 !py-2.5">
+                              {usingId === (tpl._id || tpl.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />} Use & Edit
+                            </GradientButton>
+                          </>
                         ) : (
                           <>
-                            <button onClick={() => handleUseTemplate(tpl)} disabled={usingId === (tpl._id || tpl.id)}
-                              title="Open as editable project" className="p-2.5 glass rounded-xl text-white/80 hover:text-white hover:border-white/25 transition-all">
-                              {usingId === (tpl._id || tpl.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />}
+                            <button onClick={() => addToCart(tpl)}
+                              title={inCart(tpl) ? 'In cart' : 'Add to cart'}
+                              className={`p-2.5 glass rounded-xl transition-all ${inCart(tpl) ? 'text-brand-pink' : 'text-white/80 hover:text-white hover:border-white/25'}`}>
+                              <ShoppingCart className="w-4 h-4" />
                             </button>
                             <GradientButton onClick={() => onCheckout(tpl)} className="!px-5 !py-2.5">
-                              <ShoppingCart className="w-4 h-4" /> Buy
+                              Buy
                             </GradientButton>
                           </>
                         )}

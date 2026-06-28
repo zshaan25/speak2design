@@ -84,8 +84,9 @@ export const getDashboard = async (req, res, next) => {
 
     // ── Stats ──────────────────────────────────────────────────────────────
     // totalDesigns requires a separate count (recentDesigns is capped at 5).
-    // Exclude trashed projects so the stat matches what's actually in the library.
-    const totalDesigns = await Project.countDocuments({ user: userId, deletedAt: null });
+    // Match the main "My Projects" view exactly — exclude trashed AND archived —
+    // so the headline stat never shows more than what the user actually sees.
+    const totalDesigns = await Project.countDocuments({ user: userId, deletedAt: null, isArchived: false });
 
     const stats = {
       totalDesigns,

@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { sendPasswordResetEmail, isMailConfigured } from '../utils/mailer.js';
 import { createUpgradeCheckoutSession, retrieveCheckoutSession } from '../services/stripe.js';
+import { createNotification } from './notificationController.js';
 
 const hashToken = (raw) => crypto.createHash('sha256').update(raw).digest('hex');
 
@@ -342,6 +343,10 @@ export const upgradeToPremium = async (req, res) => {
       { new: true }
     ).select('-password');
 
+    await createNotification(user._id, {
+      type: 'success', title: 'Welcome to Premium 🎉',
+      message: 'Unlimited voice commands, publishing and downloads are unlocked.'
+    });
 
     return res.status(200).json({
       success: true,
@@ -407,6 +412,10 @@ export const confirmUpgrade = async (req, res) => {
     }
 
     const user = await User.findByIdAndUpdate(req.user._id, { tier: 'premium' }, { new: true }).select('-password');
+    await createNotification(user._id, {
+      type: 'success', title: 'Welcome to Premium 🎉',
+      message: 'Your payment was confirmed — all Premium features are unlocked.'
+    });
     return res.status(200).json({
       success: true,
       message: 'Welcome to Premium!',

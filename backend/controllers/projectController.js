@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import Project from '../models/Project.js';
 import { uploadThumbnailToS3, isS3Configured } from '../services/s3.js';
+import { createNotification } from './notificationController.js';
 
 // Create a new project for logged-in user
 export const createProject = async (req, res) => {
@@ -103,6 +104,13 @@ export const updateProjectCanvas = async (req, res) => {
       { new: true }
     );
     if (!project) return res.status(404).json({ success: false, message: 'Project not found.' });
+    // Only notify on an explicit manual save (not the 8s autosave) to avoid spam.
+    if (req.body.notify === true) {
+      await createNotification(req.user._id, {
+        type: 'success', title: 'Project saved',
+        message: `"${project.title}" was saved successfully.`
+      });
+    }
     return res.status(200).json({ success: true, project });
   } catch (err) {
     console.error('>>> Project update error:', err);

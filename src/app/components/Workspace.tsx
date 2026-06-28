@@ -849,7 +849,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
       const projRes = await fetch(`${API_BASE}/api/projects/${pid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ canvasState, title: projectTitle, language })
+        body: JSON.stringify({ canvasState, title: projectTitle, language, notify: true })
       });
       const projData = await projRes.json();
       if (!projData.success) {

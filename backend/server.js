@@ -85,6 +85,18 @@ app.use((req, res) => {
 // ─── Global Error Handler (Segment 1) ────────────────────────────────────────
 app.use(globalErrorHandler);
 
+// ─── Crash diagnostics ───────────────────────────────────────────────────────
+// Log the full stack for any async error that escapes a route, instead of the
+// process dying with no usable output. In dev we keep running so one bad request
+// doesn't take the whole server down.
+process.on('unhandledRejection', (reason) => {
+  console.error('>>> UNHANDLED REJECTION:', reason instanceof Error ? reason.stack : reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('>>> UNCAUGHT EXCEPTION:', err.stack || err);
+  if (process.env.NODE_ENV === 'production') process.exit(1);
+});
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 

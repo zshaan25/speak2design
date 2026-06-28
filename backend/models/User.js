@@ -58,7 +58,8 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // ─── Indexes ──────────────────────────────────────────────────────────────────
-userSchema.index({ email: 1 });
+// email already gets a unique index from `unique: true` on the field — declaring
+// it again here caused Mongoose's "Duplicate schema index" warning.
 userSchema.index({ resetPasswordToken: 1 });
 
 // ─── Pre-save: hash password only when modified and not already hashed ────────

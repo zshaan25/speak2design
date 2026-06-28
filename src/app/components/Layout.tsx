@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Mic, LayoutGrid, ShoppingBag, LogOut, Info, Search, Bell, Star, Trash2, Users, Crown, Sun, Moon, Clock, FileText } from 'lucide-react';
+import { Mic, LayoutGrid, ShoppingBag, LogOut, Info, Search, Bell, Star, Trash2, Users, Crown, Sun, Moon, Clock, FileText, Archive } from 'lucide-react';
 import { useTheme } from '../theme/ThemeContext';
 import { useLang } from '../i18n/LanguageContext';
 import { Logo } from '../design/Logo';
@@ -27,13 +27,11 @@ export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string)
     { id: 'workspace', label: t('workspace'), icon: Mic },
     { id: 'marketplace', label: t('marketplace'), icon: ShoppingBag },
   ];
-  // Archived removed — backend query/route exist but there's no UI to archive a
-  // project, so the view could never populate (dead UI). Favorites/Drafts/Shared
-  // are fully functional (star toggle / empty-canvas / public-share).
   const secondaryItems = [
     { id: 'favorites', label: t('favorites'), icon: Star, view: 'favorites' },
     { id: 'drafts', label: t('drafts'), icon: FileText, view: 'drafts' },
     { id: 'shared', label: t('shared'), icon: Users, view: 'shared' },
+    { id: 'archived', label: t('archived'), icon: Archive, view: 'archived' },
     { id: 'trash', label: t('trash'), icon: Trash2, view: 'trash' },
   ];
 

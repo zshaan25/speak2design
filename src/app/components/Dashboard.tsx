@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, Clock, Globe, Trash2, CheckCircle2, FolderOpen, Mic, LayoutTemplate, ShoppingBag, Star, RotateCcw, Sparkles, Wand2, X, ArrowRight } from 'lucide-react';
+import { Plus, Search, Clock, Globe, Trash2, CheckCircle2, FolderOpen, Mic, LayoutTemplate, ShoppingBag, Star, RotateCcw, Sparkles, Wand2, X, ArrowRight, Archive } from 'lucide-react';
 import { GlassCard } from '../design/GlassCard';
 import { GradientButton } from '../design/GradientButton';
 
@@ -102,6 +102,7 @@ const STARTER_TEMPLATES = [
 export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProject, showSuccess, filter = 'all', onNavigate }) => {
   const view = VIEW_TITLES[filter] || VIEW_TITLES.all;
   const isTrash = filter === 'trash';
+  const isArchivedView = filter === 'archived';
   const [visibleSuccess, setVisibleSuccess] = useState(showSuccess);
   const [projects, setProjects] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -165,6 +166,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
       const data = await res.json();
       if (data.success) setProjects(prev => prev.filter(p => p._id !== id));
     } catch { console.error('Restore failed'); }
+  };
+
+  // Archive / unarchive. Refetch after so the card lands in (or leaves) the
+  // current view per the server-side filter.
+  const handleToggleArchive = async (e: React.MouseEvent, id: string, current: boolean) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`${API_BASE}/api/projects/${id}/archive`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ isArchived: !current })
+      });
+      const data = await res.json();
+      if (data.success) setProjects(prev => prev.filter(p => p._id !== id));
+    } catch { console.error('Archive toggle failed'); }
   };
 
   const handleToggleFavorite = async (e: React.MouseEvent, id: string, current: boolean) => {
@@ -414,6 +429,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
                     <button onClick={(e) => handleRestore(e, project._id)} title="Restore"
                       className="p-2 bg-black/25 backdrop-blur-md rounded-lg text-white hover:bg-emerald-500/60 transition-colors">
                       <RotateCcw className="w-4 h-4" />
+                    </button>
+                  )}
+                  {/* Archive (or unarchive in the Archived view) — not shown in Trash */}
+                  {!isTrash && (
+                    <button onClick={(e) => handleToggleArchive(e, project._id, !!project.isArchived)}
+                      title={isArchivedView ? 'Unarchive' : 'Archive'}
+                      className="p-2 bg-black/25 backdrop-blur-md rounded-lg text-white hover:bg-amber-500/60 transition-colors">
+                      {isArchivedView ? <RotateCcw className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
                     </button>
                   )}
                   <button onClick={(e) => handleDelete(e, project._id)} title={isTrash ? 'Delete forever' : 'Move to Trash'}

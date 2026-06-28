@@ -159,6 +159,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
     } catch { console.error('Delete failed'); }
   };
 
+  // Permanently purge every trashed project.
+  const handleEmptyTrash = async () => {
+    if (projects.length === 0) return;
+    if (!confirm(`Permanently delete all ${projects.length} project(s) in Trash? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/projects/trash/empty`, { method: 'DELETE', headers: authHeaders() });
+      const data = await res.json();
+      if (data.success) setProjects([]);
+    } catch { console.error('Empty trash failed'); }
+  };
+
   const handleRestore = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     try {
@@ -250,7 +261,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
           <h1 className="font-display text-3xl font-bold text-white">{view.title}</h1>
           <p className="text-white/45 mt-1">{loading ? 'Loading…' : `${projects.length} ${projects.length === 1 ? 'project' : 'projects'} · ${view.sub}`}</p>
         </div>
-        <GradientButton onClick={() => setShowCreate(true)}><Plus className="w-5 h-5" /> New Project</GradientButton>
+        {isTrash ? (
+          <button
+            onClick={handleEmptyTrash}
+            disabled={projects.length === 0}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Trash2 className="w-5 h-5" /> Empty Trash
+          </button>
+        ) : (
+          <GradientButton onClick={() => setShowCreate(true)}><Plus className="w-5 h-5" /> New Project</GradientButton>
+        )}
       </div>
 
       {/* Stats bar — populated from /api/dashboard */}

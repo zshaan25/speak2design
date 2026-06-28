@@ -182,6 +182,17 @@ export const deleteProject = async (req, res) => {
   }
 };
 
+// DELETE /api/projects/trash/empty — permanently purge all trashed projects.
+export const emptyTrash = async (req, res) => {
+  try {
+    const result = await Project.deleteMany({ user: req.user._id, deletedAt: { $ne: null } });
+    return res.status(200).json({ success: true, deletedCount: result.deletedCount });
+  } catch (err) {
+    console.error('>>> Empty trash error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to empty trash.' });
+  }
+};
+
 // POST /api/projects/:id/thumbnail
 export const uploadThumbnail = async (req, res) => {
   try {

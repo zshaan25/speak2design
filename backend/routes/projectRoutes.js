@@ -14,6 +14,7 @@ import {
   toggleFavorite,
   toggleArchive,
   restoreProject,
+  emptyTrash,
 } from '../controllers/projectController.js';
 
 // Memory storage for thumbnail uploads (PNG, max 5MB)
@@ -37,6 +38,9 @@ const router = express.Router();
 
 // Public view — no auth (before /:id to avoid collision)
 router.get('/public/:token', getPublicProject);
+
+// Bulk empty trash (before /:id so "trash" isn't captured as an id)
+router.delete('/trash/empty', requireAuthentication, emptyTrash);
 
 router.post('/', requireAuthentication, createProject);
 router.get('/', requireAuthentication, getUserProjects);

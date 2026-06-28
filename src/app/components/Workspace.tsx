@@ -834,6 +834,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
 
   // ── Save ─────────────────────────────────────────────────────────────────────
   const handleSaveProject = async () => {
+    // Don't create an empty project from a blank canvas (avoids junk "drafts").
+    if (canvasState.length === 0 && !projectId && !createdProjectIdRef.current) {
+      toast.error('Canvas is empty — add a component before saving.');
+      return;
+    }
     setIsSaving(true);
     try {
       const token = localStorage.getItem('speak2design_token');
@@ -1805,6 +1810,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
           </button>
           <button
             onClick={async () => {
+              // Don't spin up an empty project just to share nothing.
+              if (canvasState.length === 0 && !activeProjectId) {
+                toast.error('Add a component before sharing.');
+                return;
+              }
               // Auto-create the project if it doesn't exist yet, then share.
               const pid = await ensureProjectId();
               if (!pid) { toast.error('Could not create a project to share. Check your connection.'); return; }

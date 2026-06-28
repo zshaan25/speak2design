@@ -510,7 +510,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                     const proj = myProjects.find(p => p._id === e.target.value);
                     setPublishForm(f => ({ ...f, designId: e.target.value, title: f.title || (proj?.title || '') }));
                   }}
-                  className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-gray-800"
+                  className="w-full px-5 py-3.5 bg-gray-50 text-gray-900 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-gray-800"
                 >
                   <option value="">— Select a project —</option>
                   {myProjects.map(p => (
@@ -529,7 +529,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                     value={publishForm.title}
                     onChange={e => setPublishForm(f => ({ ...f, title: e.target.value }))}
                     placeholder="e.g., Modern E-commerce Template"
-                    className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC] transition-all"
+                    className="w-full px-5 py-3.5 bg-gray-50 text-gray-900 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC] transition-all"
                   />
                 </div>
                 <div>
@@ -539,7 +539,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                     value={publishForm.description}
                     onChange={e => setPublishForm(f => ({ ...f, description: e.target.value }))}
                     placeholder="Describe your template..."
-                    className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC] transition-all resize-none"
+                    className="w-full px-5 py-3.5 bg-gray-50 text-gray-900 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC] transition-all resize-none"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -551,7 +551,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                         type="number"
                         value={publishForm.price}
                         onChange={e => setPublishForm(f => ({ ...f, price: e.target.value }))}
-                        className="w-full pl-10 pr-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC]"
+                        className="w-full pl-10 pr-5 py-3.5 bg-gray-50 text-gray-900 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC]"
                       />
                     </div>
                   </div>
@@ -560,7 +560,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                     <select
                       value={publishForm.language}
                       onChange={e => setPublishForm(f => ({ ...f, language: e.target.value }))}
-                      className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC] font-bold"
+                      className="w-full px-5 py-3.5 bg-gray-50 text-gray-900 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC] font-bold"
                     >
                       <option>English</option>
                       <option>Urdu</option>
@@ -573,7 +573,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
               <div className="space-y-6">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Preview Image</label>
-                  <div className="w-full h-48 rounded-[32px] overflow-hidden bg-gray-50 border border-gray-100 mb-3">
+                  <div className="w-full h-48 rounded-[32px] overflow-hidden bg-gray-50 text-gray-900 border border-gray-100 mb-3">
                     <img
                       src={publishForm.imageUrl.trim() || '/previews/generic.svg'}
                       alt="Template preview"
@@ -588,7 +588,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                       value={publishForm.imageUrl}
                       onChange={e => setPublishForm(f => ({ ...f, imageUrl: e.target.value }))}
                       placeholder="Paste preview image URL (optional)"
-                      className="w-full pl-10 pr-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC] text-sm"
+                      className="w-full pl-10 pr-5 py-3 bg-gray-50 text-gray-900 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#0052CC] text-sm"
                     />
                   </div>
                   <p className="text-[11px] text-gray-400 mt-1.5 ml-1">Leave blank to use a default preview based on category.</p>
@@ -600,7 +600,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                     value={publishForm.tags}
                     onChange={e => setPublishForm(f => ({ ...f, tags: e.target.value }))}
                     placeholder="e.g., Dashboard, Modern, Clean"
-                    className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                    className="w-full px-5 py-3 bg-gray-50 text-gray-900 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                   />
                 </div>
               </div>

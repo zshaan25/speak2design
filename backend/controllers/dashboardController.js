@@ -83,8 +83,9 @@ export const getDashboard = async (req, res, next) => {
       : { limit: DAILY_LIMIT,   used: voiceCommandsToday, remaining: Math.max(0, DAILY_LIMIT - voiceCommandsToday) };
 
     // ── Stats ──────────────────────────────────────────────────────────────
-    // totalDesigns requires a separate count (recentDesigns is capped at 5)
-    const totalDesigns = await Project.countDocuments({ user: userId });
+    // totalDesigns requires a separate count (recentDesigns is capped at 5).
+    // Exclude trashed projects so the stat matches what's actually in the library.
+    const totalDesigns = await Project.countDocuments({ user: userId, deletedAt: null });
 
     const stats = {
       totalDesigns,

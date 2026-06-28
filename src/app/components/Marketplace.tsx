@@ -401,7 +401,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                               <ShoppingCart className="w-4 h-4" />
                             </button>
                             <GradientButton onClick={() => handleUseTemplate(tpl)} disabled={usingId === (tpl._id || tpl.id)} className="!px-5 !py-2.5">
-                              {usingId === (tpl._id || tpl.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />} Use & Edit
+                              {usingId === (tpl._id || tpl.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />} Use
                             </GradientButton>
                           </>
                         ) : (

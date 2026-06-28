@@ -192,7 +192,7 @@ export const NotificationBell: React.FC = () => {
                 </div>
               ) : (
                 items.map(n => (
-                  <div key={n._id} className={`flex gap-3 px-4 py-3 border-b border-white/5 transition-colors ${n.read ? 'opacity-60' : 'bg-white/[0.03]'}`}>
+                  <div key={n._id} className={`flex gap-3 px-4 py-3 border-b border-white/5 transition-colors ${n.read ? '' : 'bg-white/[0.06]'}`}>
                     <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 mt-0.5">
                       {NOTIF_ICON[n.type] || NOTIF_ICON.info}
                     </div>

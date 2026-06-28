@@ -192,7 +192,10 @@
   --space-800: #0f172a;
   --space-700: #111827;
   --glass:        rgba(255, 255, 255, 0.05);
-  --glass-strong: rgba(255, 255, 255, 0.08);
+  /* Opaque dark surface so dropdowns/modals (notifications, theme/font pickers,
+     publish modal) are readable in dark mode instead of see-through. The light
+     theme overrides this to a near-white surface further down. */
+  --glass-strong: rgba(17, 24, 39, 0.92);
   --glass-border: rgba(255, 255, 255, 0.10);
 }
 

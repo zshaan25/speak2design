@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, Clock, Globe, Trash2, CheckCircle2, FolderOpen, Mic, LayoutTemplate, ShoppingBag, Star, RotateCcw, Sparkles, Wand2, X, ArrowRight, Archive } from 'lucide-react';
+import { toast } from 'sonner';
 import { GlassCard } from '../design/GlassCard';
 import { GradientButton } from '../design/GradientButton';
 
@@ -165,9 +166,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
     if (!confirm(`Permanently delete all ${projects.length} project(s) in Trash? This cannot be undone.`)) return;
     try {
       const res = await fetch(`${API_BASE}/api/projects/trash/empty`, { method: 'DELETE', headers: authHeaders() });
-      const data = await res.json();
-      if (data.success) setProjects([]);
-    } catch { console.error('Empty trash failed'); }
+      const data = await res.json().catch(() => ({ success: false }));
+      if (res.ok && data.success) {
+        setProjects([]);
+        toast.success(`Trash emptied — ${data.deletedCount ?? 0} project(s) deleted.`);
+      } else {
+        toast.error(data.message || 'Could not empty trash.');
+      }
+    } catch {
+      toast.error('Could not reach the server to empty trash.');
+    }
   };
 
   const handleRestore = async (e: React.MouseEvent, id: string) => {

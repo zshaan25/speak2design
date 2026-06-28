@@ -198,8 +198,8 @@ export const NotificationBell: React.FC = () => {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-white leading-snug">{n.title}</p>
-                      {n.message && <p className="text-[11px] text-white/50 leading-snug mt-0.5 break-words">{n.message}</p>}
-                      <p className="text-[10px] text-white/30 mt-1">{timeAgo(n.createdAt)}</p>
+                      {n.message && <p className="text-[11px] text-white/75 leading-snug mt-0.5 break-words">{n.message}</p>}
+                      <p className="text-[10px] text-white/45 mt-1">{timeAgo(n.createdAt)}</p>
                     </div>
                     {!n.read && <span className="w-2 h-2 rounded-full bg-brand-pink flex-shrink-0 mt-1.5" />}
                   </div>

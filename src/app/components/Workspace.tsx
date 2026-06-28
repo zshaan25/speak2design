@@ -1856,7 +1856,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
               </div>
               {language === 'Urdu' && (
                 <p className="text-[10px] text-brand-cyan mt-1.5 ml-1">
-                  🎙 Gemini AI will transcribe your Urdu speech.
+                  🎙 Groq Whisper will transcribe your Urdu speech.
                 </p>
               )}
             </div>

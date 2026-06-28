@@ -1528,12 +1528,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   const handleRegenerate = async () => {
-    if (!activeComponent || !regenPrompt.trim() || !projectId) return;
+    if (!activeComponent || !regenPrompt.trim()) return;
     setIsRegenerating(true);
     try {
+      // Auto-create the project if it doesn't exist yet, so Regenerate works
+      // on brand-new (unsaved) projects too.
+      const pid = await ensureProjectId();
+      if (!pid) { toast.error('Could not prepare the project. Check your connection.'); setIsRegenerating(false); return; }
       const token = localStorage.getItem('speak2design_token');
       const command = `Generate a single ${activeComponent.type} section: ${regenPrompt.trim()}. Return only one component.`;
-      const res = await fetch(`${API_BASE}/api/projects/${projectId}/generate`, {
+      const res = await fetch(`${API_BASE}/api/projects/${pid}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ command, language })
@@ -2459,7 +2463,7 @@ onChange={e => { setEditingName(e.target.value); setNameDirty(true); }}
                 />
                 <button
                   onClick={handleRegenerate}
-                  disabled={isRegenerating || !regenPrompt.trim() || !projectId}
+                  disabled={isRegenerating || !regenPrompt.trim()}
                   className="mt-2 w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-bold py-2 rounded-xl text-xs transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isRegenerating

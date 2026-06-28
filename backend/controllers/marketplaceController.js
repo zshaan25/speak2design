@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import Template from '../models/Template.js';
 import User     from '../models/User.js';
 import Project  from '../models/Project.js';
+import { DEMO_SNAPSHOTS } from '../data/demoSnapshots.js';
 import {
   createStripeProduct,
   createCheckoutSession,
@@ -26,6 +27,19 @@ export const seedDefaultTemplates = async ({ force = false } = {}) => {
   // Only consider live system templates so leftover inactive rows don't block seeding.
   const existing = await Template.countDocuments({ sellerId: null, isActive: true });
   if (existing > 0 && !force) return { seeded: 0, skipped: true };
+  // Force reseed: remove the old system templates so the new ones (with real
+  // canvas snapshots) replace them instead of colliding on uniquenessHash.
+  if (force) await Template.deleteMany({ sellerId: null });
+
+  // Turn the section list for each demo into real canvas components (id + styles).
+  const buildSnapshot = (title) =>
+    (DEMO_SNAPSHOTS[title] || []).map(s => ({
+      id: crypto.randomUUID(),
+      type: s.type,
+      name: s.name,
+      styles: {},
+      htmlContent: s.htmlContent,
+    }));
 
   const docs = DEMO_TEMPLATES.map(t => ({
     ...t,
@@ -36,7 +50,7 @@ export const seedDefaultTemplates = async ({ force = false } = {}) => {
     // Distinct hash per demo — avoids the sparse-unique index collision that a
     // shared null value would cause.
     uniquenessHash: crypto.createHash('md5').update(`seed:${t.title}`).digest('hex'),
-    canvasSnapshot: [],
+    canvasSnapshot: buildSnapshot(t.title),
     isActive: true,
   }));
   // ordered:false → skip any pre-existing duplicates instead of aborting the batch.

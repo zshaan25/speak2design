@@ -35,7 +35,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
-  const [publishForm, setPublishForm] = useState({ title: '', description: '', price: '2500', language: 'English', tags: '', imageUrl: '' });
+  const [publishForm, setPublishForm] = useState({ title: '', description: '', price: '2500', language: 'English', tags: '', imageUrl: '', designId: '' });
+  const [myProjects, setMyProjects] = useState<any[]>([]);
   const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [myTemplates, setMyTemplates] = useState<any[]>([]);
@@ -148,7 +149,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
     finally { setLibraryLoading(false); }
   };
 
-  useEffect(() => { fetchTemplates(); loadTier(); fetchMyTemplates(); fetchLibrary(); }, []);
+  // The user's own projects — the design to attach when publishing.
+  const fetchMyProjects = async () => {
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects?filter=all`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setMyProjects((data.projects || []).filter((p: any) => (p.canvasState || []).length > 0));
+    } catch { /* non-fatal */ }
+  };
+
+  useEffect(() => { fetchTemplates(); loadTier(); fetchMyTemplates(); fetchLibrary(); fetchMyProjects(); }, []);
   // Refresh the library whenever the user switches to that tab.
   useEffect(() => { if (view === 'library') fetchLibrary(); }, [view]);
 
@@ -180,6 +191,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
 
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!publishForm.designId) { toast.error('Select which of your projects to publish.'); return; }
     if (!publishForm.title || !publishForm.description || !publishForm.price) {
       toast.error('Please fill all required fields.');
       return;
@@ -191,6 +203,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
+          designId: publishForm.designId,   // attaches the project's actual canvas
           title: publishForm.title,
           description: publishForm.description,
           price: Number(publishForm.price),
@@ -202,7 +215,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
       const data = await res.json();
       if (data.success) {
         toast.success(data.message || 'Template published!');
-        setPublishForm({ title: '', description: '', price: '2500', language: 'English', tags: '', imageUrl: '' });
+        setPublishForm({ title: '', description: '', price: '2500', language: 'English', tags: '', imageUrl: '', designId: '' });
         setView('buy');
         fetchTemplates();
       } else if (res.status === 403 && data.premiumRequired) {
@@ -481,7 +494,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto">
           <div className="bg-white rounded-[40px] shadow-xl border border-gray-100 p-10">
             <h2 className="text-2xl font-black text-gray-900 mb-2">Publish Your Design to Marketplace</h2>
-            <p className="text-gray-500 mb-8 font-medium">Reach thousands of designers and earn from your creations.</p>
+            <p className="text-gray-500 mb-6 font-medium">Pick one of your projects — its actual design is what buyers receive.</p>
+
+            {/* Pick the project whose canvas gets published */}
+            <div className="mb-8">
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Project to Publish *</label>
+              {myProjects.length === 0 ? (
+                <div className="px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-700">
+                  You have no projects with content yet. Build a design first, then come back to publish it.
+                </div>
+              ) : (
+                <select
+                  value={publishForm.designId}
+                  onChange={e => {
+                    const proj = myProjects.find(p => p._id === e.target.value);
+                    setPublishForm(f => ({ ...f, designId: e.target.value, title: f.title || (proj?.title || '') }));
+                  }}
+                  className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-gray-800"
+                >
+                  <option value="">— Select a project —</option>
+                  {myProjects.map(p => (
+                    <option key={p._id} value={p._id}>{p.title} · {(p.canvasState || []).length} component(s)</option>
+                  ))}
+                </select>
+              )}
+            </div>
 
             <form onSubmit={handlePublish} className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">

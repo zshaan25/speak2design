@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 
@@ -29,6 +29,15 @@ export default function App() {
   const [publicShareToken, setPublicShareToken] = useState<string | null>(null);
   const [dashboardFilter, setDashboardFilter] = useState<string>('all');
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
+  // While validating a stored token on load, show a loader instead of flashing
+  // the landing page. Only the first boot restores the previously open page.
+  const [booting, setBooting] = useState<boolean>(
+    !!localStorage.getItem('speak2design_token') &&
+    !new URLSearchParams(window.location.search).get('reset')
+  );
+  const firstBootRef = useRef(true);
+  const NAV_KEY = 'speak2design_nav';
+  const PERSIST_PAGES: Page[] = ['dashboard', 'workspace', 'marketplace', 'settings'];
 
   // ── Detect /view/:token share links before anything else ──────────────────
   // The app uses a state-machine router without React Router, so we intercept
@@ -90,6 +99,8 @@ export default function App() {
     }
     if (oauthToken) {
       localStorage.setItem('speak2design_token', oauthToken);
+      localStorage.removeItem(NAV_KEY); // fresh login → start on dashboard
+      firstBootRef.current = false;
       setAuthToken(oauthToken);
       toast.success('Signed in successfully.');
     }
@@ -123,15 +134,30 @@ export default function App() {
     return () => { window.fetch = orig; };
   }, []);
 
+  // Restore the page the user was on before a refresh (first boot only).
+  const restoreSavedPage = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(NAV_KEY) || 'null');
+      if (saved?.page && PERSIST_PAGES.includes(saved.page)) {
+        if (saved.page === 'workspace' && !saved.projectId) { setCurrentPage('dashboard'); return; }
+        if (saved.projectId) setSelectedProjectId(saved.projectId);
+        if (saved.filter) setDashboardFilter(saved.filter);
+        setCurrentPage(saved.page);
+        return;
+      }
+    } catch { /* ignore */ }
+    setCurrentPage('dashboard');
+  };
+
   useEffect(() => {
     const bootstrapSession = async () => {
       // A password-reset link (?reset=token) must always land on the auth screen
       // so the reset modal can handle it — even if a stale session token exists.
       if (new URLSearchParams(window.location.search).get('reset')) {
-        setCurrentPage('signup');
+        setCurrentPage('signup'); setBooting(false); firstBootRef.current = false;
         return;
       }
-      if (!authToken) { setCurrentPage('landing'); return; }
+      if (!authToken) { setCurrentPage('landing'); setBooting(false); firstBootRef.current = false; return; }
       try {
         const res = await fetch(`${API_BASE}/api/auth/profile`, {
           headers: { Authorization: `Bearer ${authToken}` }
@@ -147,16 +173,33 @@ export default function App() {
             tier: p.tier,
             usageCount: p.usageCount || 0
           });
-          setCurrentPage('dashboard');
+          // On a page reload, return to where the user was; on a fresh login, dashboard.
+          if (firstBootRef.current) restoreSavedPage();
+          else setCurrentPage('dashboard');
         } else { clearUserSession(); }
       } catch { clearUserSession(); }
+      finally { setBooting(false); firstBootRef.current = false; }
     };
     bootstrapSession();
   }, [authToken]);
 
+  // Persist the current page so a refresh returns to it (logged-in users only).
+  useEffect(() => {
+    if (!user) return;
+    if (PERSIST_PAGES.includes(currentPage)) {
+      try {
+        localStorage.setItem(NAV_KEY, JSON.stringify({
+          page: currentPage, projectId: selectedProjectId, filter: dashboardFilter,
+        }));
+      } catch { /* ignore */ }
+    }
+  }, [currentPage, selectedProjectId, dashboardFilter, user]);
+
   const clearUserSession = () => {
     localStorage.removeItem('speak2design_token');
+    localStorage.removeItem(NAV_KEY);
     setAuthToken(null); setUser(null); setCurrentPage('landing');
+    setBooting(false); firstBootRef.current = false;
   };
 
   const handleAuthenticationSuccess = (token: string, userData: any) => {
@@ -297,6 +340,20 @@ export default function App() {
       default:             return { title: 'Speak2Design',     text: 'The future of UI design is vocal.' };
     }
   };
+
+  // While validating a stored session, show a loader instead of flashing the
+  // landing/login page before redirecting to the user's page.
+  if (booting) {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center text-white">
+        <AuroraBackground />
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-brand-cyan animate-spin" />
+          <p className="text-sm font-bold text-white/60">Loading your workspace…</p>
+        </div>
+      </div>
+    );
+  }
 
   const annotation = getAnnotationText();
   // landing + public_view are full-screen marketing/standalone pages (no nav, no annotation).

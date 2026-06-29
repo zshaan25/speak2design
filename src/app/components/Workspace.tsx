@@ -24,6 +24,8 @@ interface WorkspaceProps {
   onBack: () => void;
   projectId?: string | null;
   initialPrompt?: string | null;
+  /** Auto-open the template library on mount (Dashboard "Templates" shortcut). */
+  openTemplates?: boolean;
 }
 
 interface CanvasComponent {
@@ -542,7 +544,7 @@ body {
 };
 
 // ─── Workspace Component ───────────────────────────────────────────────────────
-export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initialPrompt }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initialPrompt, openTemplates }) => {
   const [isListening, setIsListening] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [language, setLanguage] = useState<'English' | 'Urdu'>('English');
@@ -554,7 +556,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
   const [dailyRemaining, setDailyRemaining] = useState<number | 'unlimited' | null>(null);
   const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState(!!openTemplates);
   const [showPreview, setShowPreview] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [clarificationMessage, setClarificationMessage] = useState<string | null>(null);

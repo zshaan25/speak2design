@@ -29,6 +29,8 @@ export default function App() {
   const [publicShareToken, setPublicShareToken] = useState<string | null>(null);
   const [dashboardFilter, setDashboardFilter] = useState<string>('all');
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
+  // When true, the workspace opens with the template library auto-shown.
+  const [openWorkspaceTemplates, setOpenWorkspaceTemplates] = useState(false);
   // While validating a stored token on load, show a loader instead of flashing
   // the landing page. Only the first boot restores the previously open page.
   const [booting, setBooting] = useState<boolean>(
@@ -225,7 +227,25 @@ export default function App() {
 
   // Optionally seeds the new project with an AI prompt that the workspace
   // auto-generates from on load (#17 website creation flow).
+  // Open a fresh workspace with the template library shown (Dashboard "Templates").
+  const handleOpenTemplates = async () => {
+    setInitialPrompt(null);
+    setOpenWorkspaceTemplates(true);
+    try {
+      const token = localStorage.getItem('speak2design_token');
+      const res = await fetch(`${API_BASE}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: 'Untitled Project', language: 'English' })
+      });
+      const data = await res.json();
+      setSelectedProjectId(data.success ? data.project._id : null);
+    } catch { setSelectedProjectId(null); }
+    setCurrentPage('workspace');
+  };
+
   const handleNewProject = async (prompt?: string, title?: string, language?: string) => {
+    setOpenWorkspaceTemplates(false);
     setInitialPrompt(prompt && prompt.trim() ? prompt.trim() : null);
     try {
       const token = localStorage.getItem('speak2design_token');
@@ -248,6 +268,7 @@ export default function App() {
   };
 
   const handleSelectProject = (projectId: string) => {
+    setOpenWorkspaceTemplates(false);
     setSelectedProjectId(projectId);
     setCurrentPage('workspace');
   };
@@ -295,10 +316,11 @@ export default function App() {
             showSuccess={showPurchaseSuccess}
             filter={dashboardFilter}
             onNavigate={handleNavigate}
+            onOpenTemplates={handleOpenTemplates}
           />
         );
       case 'workspace':
-        return <Workspace projectId={selectedProjectId} onBack={() => setCurrentPage('dashboard')} initialPrompt={initialPrompt} />;
+        return <Workspace projectId={selectedProjectId} onBack={() => setCurrentPage('dashboard')} initialPrompt={initialPrompt} openTemplates={openWorkspaceTemplates} />;
       case 'marketplace':
         return <Marketplace onCheckout={handleCheckout} onCheckoutCart={handleCheckoutCart} onBack={() => setCurrentPage('dashboard')} onOpenProject={handleSelectProject} />;
       case 'checkout':

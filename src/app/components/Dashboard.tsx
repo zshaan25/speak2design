@@ -13,6 +13,8 @@ interface DashboardProps {
   showSuccess?: boolean;
   filter?: string;
   onNavigate?: (page: string) => void;
+  /** Opens a workspace with the template library auto-shown. */
+  onOpenTemplates?: () => void;
 }
 
 // #17: guided "create a website" onboarding modal.
@@ -87,20 +89,7 @@ const PROJECT_COLORS = [
   'from-amber-400 to-orange-500',
 ];
 
-// #6: quick-start templates surfaced on the projects page. "Use Template" seeds an
-// AI prompt so the page is generated immediately; "Preview" opens the marketplace.
-const STARTER_TEMPLATES = [
-  { name: 'Login Page',   category: 'Auth',      prompt: 'Create a modern centered login page with email and password fields and a sign-in button', tint: 'from-blue-500 to-indigo-600' },
-  { name: 'Signup Page',  category: 'Auth',      prompt: 'Create a clean signup page with name, email, password fields and a create-account button', tint: 'from-violet-500 to-purple-600' },
-  { name: 'Landing Page', category: 'Marketing', prompt: 'Create a SaaS landing page with a hero section, features grid, pricing and a footer', tint: 'from-cyan-400 to-blue-500' },
-  { name: 'Dashboard',    category: 'App',       prompt: 'Create an analytics dashboard with a sidebar, stat cards and a data table', tint: 'from-emerald-400 to-teal-500' },
-  { name: 'Portfolio',    category: 'Personal',  prompt: 'Create a personal portfolio with a hero intro, projects grid and a contact section', tint: 'from-orange-400 to-pink-500' },
-  { name: 'E-commerce',   category: 'Store',     prompt: 'Create an e-commerce store homepage with a navbar, product grid and a featured banner', tint: 'from-pink-500 to-rose-500' },
-  { name: 'Blog',         category: 'Content',   prompt: 'Create a blog homepage with a header, featured article and a list of post cards', tint: 'from-amber-400 to-orange-500' },
-  { name: 'Admin Panel',  category: 'App',       prompt: 'Create an admin panel with a sidebar navigation, top bar and a management table', tint: 'from-blue-600 to-indigo-800' },
-];
-
-export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProject, showSuccess, filter = 'all', onNavigate }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProject, showSuccess, filter = 'all', onNavigate, onOpenTemplates }) => {
   const view = VIEW_TITLES[filter] || VIEW_TITLES.all;
   const isTrash = filter === 'trash';
   const isArchivedView = filter === 'archived';
@@ -111,7 +100,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
   const [searchQuery, setSearchQuery] = useState('');
   const [langFilter, setLangFilter] = useState<'All' | 'English' | 'Urdu'>('All');
   const [showCreate, setShowCreate] = useState(false);
-  const [templateSearch, setTemplateSearch] = useState('');
   // Publish-a-project-to-marketplace modal
   const [publishTarget, setPublishTarget] = useState<any | null>(null);
   const [publishForm, setPublishForm] = useState({ title: '', description: '', price: '0', language: 'English' });
@@ -410,7 +398,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
           {[
             { label: 'New Voice Project', icon: Mic, onClick: () => onNewProject(), tint: 'from-brand-indigo to-brand-violet' },
             { label: 'Browse Marketplace', icon: ShoppingBag, onClick: () => onNavigate?.('marketplace'), tint: 'from-brand-cyan to-brand-teal' },
-            { label: 'Upgrade to Premium', icon: LayoutTemplate, onClick: () => onNavigate?.('settings'), tint: 'from-brand-amber to-brand-pink' },
+            { label: 'Templates', icon: LayoutTemplate, onClick: () => onOpenTemplates?.(), tint: 'from-emerald-500 to-teal-500' },
           ].map(qa => (
             <button key={qa.label} onClick={qa.onClick}
               className="group flex items-center gap-3 glass rounded-2xl p-4 hover:border-white/25 transition-all text-left">
@@ -420,68 +408,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNewProject, onSelectProj
               <span className="text-sm font-bold text-white group-hover:text-brand-cyan transition-colors">{qa.label}</span>
             </button>
           ))}
-        </div>
-      )}
-
-      {/* #6: Start with a Template */}
-      {filter === 'all' && (
-        <div className="mb-10">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <LayoutTemplate className="w-5 h-5 text-brand-cyan" />
-              <h2 className="font-display text-lg font-bold text-white">Start with a Template</h2>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <input type="text" value={templateSearch} onChange={e => setTemplateSearch(e.target.value)}
-                placeholder="Search templates…"
-                className="w-56 pl-9 pr-3 py-2 glass rounded-xl text-sm text-white placeholder-white/30 focus:ring-2 focus:ring-brand-cyan/50 outline-none" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {STARTER_TEMPLATES
-              .filter(tpl =>
-                tpl.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
-                tpl.category.toLowerCase().includes(templateSearch.toLowerCase()))
-              .map(tpl => (
-                <GlassCard key={tpl.name} hover className="group overflow-hidden flex flex-col">
-                  {/* Wireframe thumbnail */}
-                  <div className={`h-28 bg-gradient-to-br ${tpl.tint} relative flex items-center justify-center p-4`}>
-                    <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-black/25 backdrop-blur-md rounded-full text-white text-[10px] font-bold border border-white/20">
-                      {tpl.category}
-                    </span>
-                    <div className="w-full max-w-[120px] bg-white/95 rounded-md shadow-lg overflow-hidden transition-transform duration-500 group-hover:scale-105">
-                      <div className="h-2.5 bg-gray-100 flex items-center gap-0.5 px-1.5">
-                        <span className="w-1 h-1 rounded-full bg-red-300" />
-                        <span className="w-1 h-1 rounded-full bg-amber-300" />
-                        <span className="w-1 h-1 rounded-full bg-green-300" />
-                      </div>
-                      <div className="p-1.5 space-y-1">
-                        <div className="h-3 rounded bg-gray-300" />
-                        <div className="h-2 rounded bg-gray-200 w-4/5" />
-                        <div className="h-2 rounded bg-gray-200 w-3/5" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-3 flex flex-col gap-2 flex-1">
-                    <p className="font-bold text-sm text-white truncate">{tpl.name}</p>
-                    <div className="flex gap-1.5 mt-auto">
-                      <button onClick={() => onNavigate?.('marketplace')}
-                        title="Preview in marketplace"
-                        className="flex-1 py-1.5 text-xs font-bold glass rounded-lg text-white/70 hover:text-white hover:border-white/25 transition-all">
-                        Preview
-                      </button>
-                      <button onClick={() => onNewProject(tpl.prompt)}
-                        title="Generate this template now"
-                        className="flex-1 py-1.5 text-xs font-bold rounded-lg text-white transition-all"
-                        style={{ background: 'linear-gradient(120deg,#6366f1,#8b5cf6,#06b6d4)' }}>
-                        Use
-                      </button>
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-          </div>
         </div>
       )}
 

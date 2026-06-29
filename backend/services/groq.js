@@ -148,8 +148,10 @@ export const parseDesignCommand = async (transcript) => {
 const buildUIPrompt = (textCommand, existingCanvasState) => {
   const existingTypes = existingCanvasState.map(c => c.type?.toLowerCase()).join(', ') || 'none';
   return `
-You are an elite UI developer specializing in Tailwind CSS component architecture.
-Process natural language design instructions (English, Urdu, or mixed) and return an updated canvas array.
+You are a SENIOR PRODUCT DESIGNER and Tailwind CSS expert. You build interfaces at the
+quality of Stripe, Linear, Vercel and Framer — modern, clean, spacious and premium.
+Read the user's instruction (English, Urdu, or Roman-Urdu/mixed), understand the INTENT,
+and return an updated canvas as JSON.
 
 CURRENT CANVAS STATE:
 ${JSON.stringify(existingCanvasState, null, 2)}
@@ -159,52 +161,60 @@ EXISTING COMPONENT TYPES ON CANVAS: ${existingTypes}
 USER COMMAND:
 "${textCommand}"
 
-STRICT OPERATIONAL RULES:
-1. Determine intent:
-   - ADD: New component not already on canvas.
-   - UPDATE: Change an existing component ("make navbar dark", "change hero to blue").
-   - DELETE: Remove a component ("remove footer", "delete form").
-   - CLEAR: Remove all components ("clear everything", "start fresh").
+─── STEP 1 · UNDERSTAND THE INTENT ────────────────────────────────────────────
+- Commands may be short, vague, voice-transcribed, or in Urdu/Roman-Urdu. Infer the most
+  sensible meaning and fill gaps with tasteful defaults — never refuse for being terse.
+- Roman-Urdu / Urdu cues: "banao/add karo/lagao"=add, "hatao/delete karo"=delete,
+  "badlo/change karo"=update, "saaf karo/clear karo"=clear, "dark wala"=dark theme,
+  "rang/color", "bara/chhota"=size, "navbar/hero/footer/form/pricing" map directly.
+- Decide ONE intent:
+  • ADD    – new component not already present
+  • UPDATE – modify an existing one ("make navbar dark", "hero ko blue karo")
+  • DELETE – remove one ("remove footer")
+  • CLEAR  – remove everything ("start fresh")
+- If the user adds a type that already exists, UPDATE it instead of duplicating.
+- Only ask for clarification if genuinely impossible to guess (rare).
 
-2. CONFLICT RESOLUTION:
-   - If user adds a type that already exists, UPDATE the existing one instead of duplicating.
-   - If command is ambiguous, return the clarification object (see format below).
+─── STEP 2 · DESIGN AT A HIGH BAR ─────────────────────────────────────────────
+Every component you output MUST look polished and intentional:
+- Strong visual hierarchy: clear headings (text-4xl/5xl font-black), supporting text
+  (text-gray-500), and a clear primary action.
+- Generous spacing: sections use py-16 to py-24 and px-6; cards use p-6/p-8; gap-6/gap-8.
+- Modern styling: rounded-2xl corners, soft shadows (shadow-sm/shadow-md/shadow-xl),
+  subtle gradients (bg-gradient-to-br from-X-600 to-Y-700), hover states (hover:…).
+- Cohesive palette: pick ONE accent colour family and use its shades consistently. When
+  UPDATING or adding to an existing design, MATCH the existing components' colour and style.
+- Responsive: use grid-cols-1 md:grid-cols-2/3, flex-col sm:flex-row where it helps.
+- Real, meaningful copy — NEVER "lorem ipsum". Write believable headings, labels and CTAs.
+- Accessible contrast: light text on dark backgrounds, dark text on light backgrounds.
 
-3. ALLOWED TYPES: navbar | hero | features | cards | form | footer | cta | pricing | testimonials | gallery | section
+─── STEP 3 · HTML RULES ───────────────────────────────────────────────────────
+- Complete Tailwind CSS markup only; standard utility classes (no custom CSS, no <style>).
+- Semantic tags: nav, header, section, footer, main, article, form.
+- No external image URLs — use gradient divs, solid colour blocks, emoji or inline SVG.
+- No <script>, no on* handlers, no javascript: hrefs.
+- Each component must have a visible background and text so it renders on a white canvas.
+- ALLOWED TYPES: navbar | hero | features | cards | form | footer | cta | pricing | testimonials | gallery | section
 
-4. HTML RULES:
-   - Complete Tailwind CSS HTML only — rich, production-quality markup.
-   - No external image URLs — use SVG placeholders or gradient divs.
-   - No <script> tags, no on* event handlers, no javascript: hrefs.
-   - Standard Tailwind utility classes only.
-   - Semantic HTML: nav, section, footer, main, article.
-   - Visually appealing with proper padding, colours, typography.
-   - Each component MUST have visible background/text so it renders on a white canvas.
-
-5. RESPONSE FORMAT — return a JSON object with a "canvas" key containing the array:
-
+─── STEP 4 · RESPONSE FORMAT (JSON object with a "canvas" key) ────────────────
 NORMAL RESPONSE:
 {
   "canvas": [
     {
       "id": "unique-uuid-string",
-      "type": "navbar",
-      "name": "Navigation Bar",
+      "type": "hero",
+      "name": "Hero Section",
       "styles": {},
-      "htmlContent": "<nav class='bg-slate-900 text-white px-6 py-4 flex items-center justify-between'>...</nav>"
+      "htmlContent": "<section class='bg-gradient-to-br from-indigo-600 to-violet-700 text-white text-center py-24 px-6'>...</section>"
     }
   ]
 }
 
-CLARIFICATION NEEDED:
-{
-  "clarification_needed": true,
-  "message": "Did you mean the hero section or the features section?",
-  "canvas": []
-}
+CLARIFICATION (only when truly ambiguous):
+{ "clarification_needed": true, "message": "Did you mean the hero or the features section?", "canvas": [] }
 
-IMPORTANT: Preserve ALL existing components unless user explicitly asks to remove them.
-Return ONLY the JSON object — no markdown, no code fences, no extra text.
+CRITICAL: Preserve ALL existing components unless the user explicitly removes them — return the
+full updated canvas array. Return ONLY the JSON object — no markdown, no code fences, no commentary.
 `;
 };
 
@@ -228,7 +238,9 @@ export const generateUI = async (textCommand, existingCanvasState) => {
         model:           'llama-3.3-70b-versatile',
         messages:        [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
-        temperature:     attempt === 1 ? 0.2 : 0.0,
+        // A touch more creativity on the first pass for richer designs; the retry
+        // drops to near-deterministic to guarantee valid JSON.
+        temperature:     attempt === 1 ? 0.45 : 0.1,
         max_tokens:      8192,
       });
 

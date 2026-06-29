@@ -348,3 +348,36 @@ body {
 
 /* Dark scrollbars → light */
 .light *::-webkit-scrollbar-thumb { background: rgba(15,23,42,.18); }
+
+/* ─── Isolate canvas content from the app theme ──────────────────────────────
+   AI/template component HTML rendered inside .s2d-render uses the same Tailwind
+   utility names (text-white, bg-white/X…) that the light overrides above hijack.
+   Re-assert their ORIGINAL values here so toggling the app's light/dark mode
+   never recolours a design or makes its text vanish. */
+.light .s2d-render .text-white,
+.light .s2d-render .text-white\/90, .light .s2d-render .text-white\/85,
+.light .s2d-render .text-white\/80, .light .s2d-render .text-white\/75,
+.light .s2d-render .text-white\/70, .light .s2d-render .text-white\/65,
+.light .s2d-render .text-white\/60, .light .s2d-render .text-white\/55,
+.light .s2d-render .text-white\/50, .light .s2d-render .text-white\/45,
+.light .s2d-render .text-white\/40, .light .s2d-render .text-white\/35,
+.light .s2d-render .text-white\/30 { color: #fff !important; }
+.light .s2d-render .text-white\/90 { color: rgba(255,255,255,.9) !important; }
+.light .s2d-render .text-white\/80 { color: rgba(255,255,255,.8) !important; }
+.light .s2d-render .text-white\/70 { color: rgba(255,255,255,.7) !important; }
+.light .s2d-render .text-white\/60 { color: rgba(255,255,255,.6) !important; }
+.light .s2d-render .text-white\/50 { color: rgba(255,255,255,.5) !important; }
+.light .s2d-render .text-white\/40 { color: rgba(255,255,255,.4) !important; }
+.light .s2d-render .text-white\/30 { color: rgba(255,255,255,.3) !important; }
+
+.light .s2d-render .bg-white\/5  { background: rgba(255,255,255,.05) !important; }
+.light .s2d-render .bg-white\/\[0\.04\] { background: rgba(255,255,255,.04) !important; }
+.light .s2d-render .bg-white\/10 { background: rgba(255,255,255,.10) !important; }
+.light .s2d-render .bg-white\/15 { background: rgba(255,255,255,.15) !important; }
+.light .s2d-render .bg-white\/20 { background: rgba(255,255,255,.20) !important; }
+
+.light .s2d-render .border-white\/10 { border-color: rgba(255,255,255,.10) !important; }
+.light .s2d-render .border-white\/15 { border-color: rgba(255,255,255,.15) !important; }
+.light .s2d-render .border-white\/20 { border-color: rgba(255,255,255,.20) !important; }
+
+.light .s2d-render .placeholder-white\/30::placeholder { color: rgba(255,255,255,.3) !important; }

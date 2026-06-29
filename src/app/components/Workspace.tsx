@@ -2321,6 +2321,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
                       </div>
                     </div>
                     <div
+                      className="s2d-render"
                       style={layoutWrapperStyle(comp.styles)}
                       dangerouslySetInnerHTML={{ __html: sanitizeHTML(comp.htmlContent) }}
                     />

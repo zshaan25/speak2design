@@ -307,7 +307,7 @@ export default function App() {
       case 'landing':
         return <Landing onGetStarted={() => setCurrentPage('signup')} onExplore={() => setCurrentPage('signup')} />;
       case 'signup':
-        return <SignUp onAuthSuccess={handleAuthenticationSuccess} />;
+        return <SignUp onAuthSuccess={handleAuthenticationSuccess} onBack={() => setCurrentPage('landing')} />;
       case 'dashboard':
         return (
           <Dashboard

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, User, Github, Chrome, ChevronRight, RefreshCw, X, KeyRound, Mic, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, Github, Chrome, ChevronRight, ChevronLeft, RefreshCw, X, KeyRound, Mic, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { GlassCard } from '../design/GlassCard';
 import { GradientButton } from '../design/GradientButton';
@@ -13,9 +13,10 @@ const inputCls = 'w-full pl-11 pr-4 py-3 bg-white/[0.04] border border-white/10 
 
 interface SignUpProps {
   onAuthSuccess: (token: string, user: any) => void;
+  onBack?: () => void;
 }
 
-export const SignUp: React.FC<SignUpProps> = ({ onAuthSuccess }) => {
+export const SignUp: React.FC<SignUpProps> = ({ onAuthSuccess, onBack }) => {
   const [isLoginMode, setIsLoginMode] = useState<boolean>(true);
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -139,6 +140,14 @@ export const SignUp: React.FC<SignUpProps> = ({ onAuthSuccess }) => {
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center p-4 text-white">
+
+      {/* Back to landing */}
+      {onBack && (
+        <button onClick={onBack}
+          className="absolute top-5 left-5 z-20 flex items-center gap-1.5 px-3 py-2 rounded-xl glass text-white/70 hover:text-white hover:border-white/25 transition-colors text-sm font-bold">
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
+      )}
 
       {/* Forgot Password Modal */}
       <AnimatePresence>

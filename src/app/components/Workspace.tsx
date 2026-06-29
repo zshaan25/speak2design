@@ -39,20 +39,48 @@ interface CanvasComponent {
 const FREE_TIER_LIMIT = 10;
 
 // ─── Component Library (#7) — drag/click-to-insert building blocks ─────────────
-// Each preset is a ready-made Tailwind block. Clicking appends it to the canvas;
-// it can also be dragged onto the canvas. Inserted blocks are fully editable.
+// Each preset is a Tailwind block with placeholder tokens (__C__ accent colour,
+// __C2__ secondary, __H__ heading, __CTA__ button, __BRAND__ name). On insert the
+// tokens are filled with random picks, so the same block looks different every
+// time — different colours and copy — instead of always the same design.
 interface LibraryItem { type: string; name: string; icon: string; html: string; }
+
+const LIB_PALETTES = ['indigo','violet','emerald','rose','amber','cyan','blue','teal','fuchsia','orange','sky','purple','pink','green'];
+const LIB_HEADINGS = ['Build something great','Launch faster than ever','Design at the speed of thought','Your idea, beautifully built','Create without limits','Ship in record time'];
+const LIB_SUBTEXT  = ['A bold section to introduce your product or idea.','Everything you need to get started today.','Crafted for teams who move fast.','Simple, powerful and ready to ship.'];
+const LIB_CTAS     = ['Get Started','Try it free','Start building','Join now','Explore','Learn more'];
+const LIB_BRANDS   = ['Nova','Lumen','Vertex','Pulse','Flux','Orbit','Atlas','Quill'];
+const LIB_QUOTES   = ['This product completely transformed how our team works.','Easily the best tool we have adopted this year.','It paid for itself in the first week.','I cannot imagine going back to the old way.'];
+const LIB_AUTHORS  = ['— Alex Rivera, CEO','— Sara Khan, Designer','— Bilal Ahmed, Founder','— Maya Chen, PM'];
+
 const COMPONENT_LIBRARY: LibraryItem[] = [
-  { type: 'navbar', name: 'Navbar', icon: '▤', html: `<nav class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between"><span class="font-extrabold text-lg">Brand</span><div class="flex gap-6 text-sm font-semibold"><a href="#" class="hover:text-cyan-400">Home</a><a href="#" class="hover:text-cyan-400">About</a><a href="#" class="hover:text-cyan-400">Contact</a></div></nav>` },
-  { type: 'hero', name: 'Hero', icon: '★', html: `<section class="bg-gradient-to-br from-indigo-600 to-violet-700 text-white text-center py-24 px-6"><h1 class="text-5xl font-black mb-4">Build something great</h1><p class="text-lg text-white/80 mb-8 max-w-xl mx-auto">A bold hero section to introduce your product or idea.</p><button class="bg-white text-indigo-700 font-bold px-8 py-3 rounded-full">Get Started</button></section>` },
-  { type: 'button', name: 'Button', icon: '⬚', html: `<div class="p-6 text-center"><button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg transition-colors">Click Me</button></div>` },
-  { type: 'cards', name: 'Card Grid', icon: '▦', html: `<section class="py-16 px-6 bg-gray-50"><div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">${[1,2,3].map(()=>`<div class="bg-white rounded-2xl shadow-md p-6"><div class="w-12 h-12 rounded-xl bg-indigo-100 mb-4"></div><h3 class="font-bold text-lg text-gray-900 mb-2">Feature</h3><p class="text-gray-500 text-sm">Describe the value this feature brings to your users.</p></div>`).join('')}</div></section>` },
-  { type: 'form', name: 'Form', icon: '✎', html: `<section class="py-16 px-6 bg-white"><form class="max-w-md mx-auto space-y-4"><h2 class="text-2xl font-bold text-gray-900 text-center mb-2">Contact Us</h2><input class="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Your name" /><input class="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Email address" /><textarea class="w-full border border-gray-300 rounded-xl px-4 py-3" rows="4" placeholder="Message"></textarea><button class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl">Send</button></form></section>` },
-  { type: 'gallery', name: 'Image', icon: '▢', html: `<div class="p-6"><div class="aspect-video w-full max-w-2xl mx-auto rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">Image Placeholder</div></div>` },
-  { type: 'pricing', name: 'Pricing', icon: '$', html: `<section class="py-16 px-6 bg-gray-50"><div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">${['Free','Pro','Team'].map((p,i)=>`<div class="bg-white rounded-2xl shadow-md p-8 text-center ${i===1?'ring-2 ring-indigo-500':''}"><h3 class="font-bold text-xl text-gray-900">${p}</h3><p class="text-4xl font-black text-gray-900 my-4">$${i*15}</p><button class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-xl mt-4">Choose</button></div>`).join('')}</div></section>` },
-  { type: 'testimonials', name: 'Testimonial', icon: '❝', html: `<section class="py-16 px-6 bg-white text-center"><p class="text-2xl font-medium text-gray-800 max-w-2xl mx-auto italic">"This product completely transformed how our team works."</p><p class="mt-4 font-bold text-gray-900">— Alex Rivera, CEO</p></section>` },
-  { type: 'footer', name: 'Footer', icon: '▬', html: `<footer class="bg-slate-900 text-white/70 py-10 px-6 text-center"><p class="font-bold text-white mb-2">Brand</p><div class="flex justify-center gap-6 text-sm mb-4"><a href="#" class="hover:text-white">Privacy</a><a href="#" class="hover:text-white">Terms</a><a href="#" class="hover:text-white">Contact</a></div><p class="text-xs">© 2026 Brand. All rights reserved.</p></footer>` },
+  { type: 'navbar', name: 'Navbar', icon: '▤', html: `<nav class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between"><span class="font-extrabold text-lg text-__C__-400">__BRAND__</span><div class="flex gap-6 text-sm font-semibold"><a href="#" class="hover:text-__C__-400">Home</a><a href="#" class="hover:text-__C__-400">About</a><a href="#" class="hover:text-__C__-400">Contact</a></div></nav>` },
+  { type: 'hero', name: 'Hero', icon: '★', html: `<section class="bg-gradient-to-br from-__C__-600 to-__C2__-700 text-white text-center py-24 px-6"><h1 class="text-5xl font-black mb-4">__H__</h1><p class="text-lg text-white/80 mb-8 max-w-xl mx-auto">__SUB__</p><button class="bg-white text-__C__-700 font-bold px-8 py-3 rounded-full">__CTA__</button></section>` },
+  { type: 'button', name: 'Button', icon: '⬚', html: `<div class="p-6 text-center"><button class="bg-__C__-600 hover:bg-__C__-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg transition-colors">__CTA__</button></div>` },
+  { type: 'cards', name: 'Card Grid', icon: '▦', html: `<section class="py-16 px-6 bg-gray-50"><div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">${[1,2,3].map(()=>`<div class="bg-white rounded-2xl shadow-md p-6"><div class="w-12 h-12 rounded-xl bg-__C__-100 mb-4 flex items-center justify-center text-__C__-600 font-black">★</div><h3 class="font-bold text-lg text-gray-900 mb-2">Feature</h3><p class="text-gray-500 text-sm">Describe the value this feature brings to your users.</p></div>`).join('')}</div></section>` },
+  { type: 'form', name: 'Form', icon: '✎', html: `<section class="py-16 px-6 bg-white"><form class="max-w-md mx-auto space-y-4"><h2 class="text-2xl font-bold text-gray-900 text-center mb-2">Contact Us</h2><input class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-__C__-500 outline-none" placeholder="Your name" /><input class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-__C__-500 outline-none" placeholder="Email address" /><textarea class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-__C__-500 outline-none" rows="4" placeholder="Message"></textarea><button class="w-full bg-__C__-600 hover:bg-__C__-700 text-white font-bold py-3 rounded-xl transition-colors">Send</button></form></section>` },
+  { type: 'gallery', name: 'Image', icon: '▢', html: `<div class="p-6"><div class="aspect-video w-full max-w-2xl mx-auto rounded-2xl bg-gradient-to-br from-__C__-400 to-__C2__-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">Image Placeholder</div></div>` },
+  { type: 'pricing', name: 'Pricing', icon: '$', html: `<section class="py-16 px-6 bg-gray-50"><div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">${['Free','Pro','Team'].map((p,i)=>`<div class="bg-white rounded-2xl shadow-md p-8 text-center ${i===1?'ring-2 ring-__C__-500':''}"><h3 class="font-bold text-xl text-gray-900">${p}</h3><p class="text-4xl font-black text-gray-900 my-4">$${i*15}</p><button class="w-full bg-__C__-600 hover:bg-__C__-700 text-white font-bold py-2.5 rounded-xl mt-4 transition-colors">Choose</button></div>`).join('')}</div></section>` },
+  { type: 'testimonials', name: 'Testimonial', icon: '❝', html: `<section class="py-16 px-6 bg-white text-center"><p class="text-__C__-500 text-lg mb-3">★★★★★</p><p class="text-2xl font-medium text-gray-800 max-w-2xl mx-auto italic">"__QUOTE__"</p><p class="mt-4 font-bold text-gray-900">__AUTHOR__</p></section>` },
+  { type: 'footer', name: 'Footer', icon: '▬', html: `<footer class="bg-slate-900 text-white/70 py-10 px-6 text-center"><p class="font-bold text-__C__-400 mb-2">__BRAND__</p><div class="flex justify-center gap-6 text-sm mb-4"><a href="#" class="hover:text-white">Privacy</a><a href="#" class="hover:text-white">Terms</a><a href="#" class="hover:text-white">Contact</a></div><p class="text-xs">© 2026 __BRAND__. All rights reserved.</p></footer>` },
 ];
+
+// Fill a library block's tokens with random picks so each insert is unique.
+const pick = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
+const materializeLibraryHTML = (html: string): string => {
+  const c = pick(LIB_PALETTES);
+  let c2 = pick(LIB_PALETTES);
+  if (c2 === c) c2 = LIB_PALETTES[(LIB_PALETTES.indexOf(c) + 3) % LIB_PALETTES.length];
+  return html
+    .replace(/__C2__/g, c2)
+    .replace(/__C__/g, c)
+    .replace(/__H__/g, pick(LIB_HEADINGS))
+    .replace(/__SUB__/g, pick(LIB_SUBTEXT))
+    .replace(/__CTA__/g, pick(LIB_CTAS))
+    .replace(/__BRAND__/g, pick(LIB_BRANDS))
+    .replace(/__QUOTE__/g, pick(LIB_QUOTES))
+    .replace(/__AUTHOR__/g, pick(LIB_AUTHORS));
+};
 
 // ─── Sanitize HTML — DOMPurify, defense-in-depth before dangerouslySetInnerHTML ─
 // Server already sanitizes AI output; this re-sanitizes on render in case stale or
@@ -1187,7 +1215,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
       type: item.type,
       name: item.name,
       styles: {},
-      htmlContent: item.html,
+      htmlContent: materializeLibraryHTML(item.html),
     };
     pushNewStateToHistory([...canvasState, comp]);
     setSelectedComponentId(comp.id);

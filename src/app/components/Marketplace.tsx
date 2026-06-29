@@ -24,13 +24,11 @@ interface MarketplaceProps {
   onCheckoutCart?: (cart: any[]) => void;
   onBack: () => void;
   onOpenProject?: (projectId: string) => void;
-  initialView?: 'buy' | 'library' | 'sell';
+  initialView?: 'buy' | 'sell';
 }
 
 export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckoutCart, onBack, onOpenProject, initialView = 'buy' }) => {
-  const [view, setView] = useState<'buy' | 'library' | 'sell'>(initialView);
-  const [library, setLibrary] = useState<any[]>([]);
-  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [view, setView] = useState<'buy' | 'sell'>(initialView);
   const [currency, setCurrency] = useState<'PKR' | 'USD'>('PKR');
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,17 +142,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
     finally { setUnpublishingId(null); }
   };
 
-  const fetchLibrary = async () => {
-    setLibraryLoading(true);
-    try {
-      const token = localStorage.getItem('speak2design_token');
-      const res = await fetch(`${API_BASE}/api/marketplace/library`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (data.success) setLibrary(data.templates);
-    } catch { /* non-fatal */ }
-    finally { setLibraryLoading(false); }
-  };
-
   // The user's own projects — the design to attach when publishing.
   const fetchMyProjects = async () => {
     try {
@@ -165,11 +152,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
     } catch { /* non-fatal */ }
   };
 
-  useEffect(() => { fetchTemplates(); loadTier(); fetchMyTemplates(); fetchLibrary(); fetchMyProjects(); }, []);
-  // Follow the requested tab when navigation changes it (e.g. sidebar "Library").
+  useEffect(() => { fetchTemplates(); loadTier(); fetchMyTemplates(); fetchMyProjects(); }, []);
+  // Follow the requested tab when navigation changes it.
   useEffect(() => { setView(initialView); }, [initialView]);
-  // Refresh the library whenever the user switches to that tab.
-  useEffect(() => { if (view === 'library') fetchLibrary(); }, [view]);
 
   const [usingId, setUsingId] = useState<string | null>(null);
   // Open a template as an editable project (#14).
@@ -314,12 +299,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
           </div>
         </div>
         <div className="flex items-center gap-1 glass p-1 rounded-xl">
-          {(['buy', 'library', 'sell'] as const).map(v => (
+          {(['buy', 'sell'] as const).map(v => (
             <button key={v} onClick={() => setView(v)}
               className={`px-3.5 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                 view === v ? 'text-white bg-white/10 glow-indigo' : 'text-white/45 hover:text-white'
               }`}>
-              {v === 'buy' ? 'Buy' : v === 'library' ? 'Library' : 'Sell'}
+              {v === 'buy' ? 'Buy Templates' : 'Sell Your Design'}
             </button>
           ))}
         </div>
@@ -485,43 +470,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                         )}
                       </div>
                     </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          )}
-        </motion.div>
-      ) : view === 'library' ? (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          {libraryLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[1,2,3].map(i => <div key={i} className="glass rounded-[32px] h-80 animate-pulse" />)}
-            </div>
-          ) : library.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-20 h-20 glass rounded-3xl flex items-center justify-center mb-6 glow-indigo">
-                <Package className="w-10 h-10 text-brand-cyan" />
-              </div>
-              <h3 className="font-display text-xl font-bold text-white mb-2">Your library is empty</h3>
-              <p className="text-white/45 mb-6">Templates you buy or add appear here, ready to open and edit.</p>
-              <GradientButton tone="green" onClick={() => setView('buy')}><ShoppingCart className="w-5 h-5" /> Browse Templates</GradientButton>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {library.map(tpl => (
-                <GlassCard key={tpl._id || tpl.id} hover gradientBorder className="group overflow-hidden rounded-[32px]">
-                  <div className="h-48 relative overflow-hidden bg-white/5">
-                    <img src={previewSrc(tpl)} alt={tpl.title} loading="lazy"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/previews/generic.svg'; }}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                    <div className="absolute top-4 right-4 px-3 py-1 bg-emerald-500/80 backdrop-blur-md rounded-full text-white text-[10px] font-bold uppercase tracking-wider">Owned</div>
-                  </div>
-                  <div className="p-6">
-                    <h3 className="font-display font-bold text-lg text-white mb-1 truncate group-hover:text-brand-cyan transition-colors">{tpl.title}</h3>
-                    <p className="text-white/45 text-xs mb-5">Added {tpl.purchasedAt ? new Date(tpl.purchasedAt).toLocaleDateString() : 'recently'}</p>
-                    <GradientButton tone="green" full onClick={() => handleUseTemplate(tpl)} disabled={usingId === (tpl._id || tpl.id)}>
-                      {usingId === (tpl._id || tpl.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />} Open & Edit
-                    </GradientButton>
                   </div>
                 </GlassCard>
               ))}

@@ -7,6 +7,7 @@ import { SignUp } from './components/SignUp';
 import { Dashboard } from './components/Dashboard';
 import { Workspace } from './components/Workspace';
 import { Marketplace } from './components/Marketplace';
+import { Library } from './components/Library';
 import { Checkout } from './components/Checkout';
 import { SettingsScreen } from './components/Settings';
 import { PublicView } from './components/PublicView';
@@ -16,7 +17,7 @@ import type { AppUser, Template } from './types';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:5000';
 
-type Page = 'landing' | 'signup' | 'dashboard' | 'workspace' | 'marketplace' | 'checkout' | 'settings' | 'public_view';
+type Page = 'landing' | 'signup' | 'dashboard' | 'workspace' | 'marketplace' | 'library' | 'checkout' | 'settings' | 'public_view';
 
 export default function App() {
   // An OAuth return arrives as ?token=… before it's persisted, so seed authToken
@@ -35,8 +36,8 @@ export default function App() {
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
   // When true, the workspace opens with the template library auto-shown.
   const [openWorkspaceTemplates, setOpenWorkspaceTemplates] = useState(false);
-  // Which tab the marketplace opens on ('buy' | 'library' | 'sell').
-  const [marketplaceView, setMarketplaceView] = useState<'buy' | 'library' | 'sell'>('buy');
+  // Which tab the marketplace opens on ('buy' | 'sell').
+  const [marketplaceView, setMarketplaceView] = useState<'buy' | 'sell'>('buy');
   // While validating a stored token on load, show a loader instead of flashing
   // the landing page. Only the first boot restores the previously open page.
   const [booting, setBooting] = useState<boolean>(
@@ -44,7 +45,7 @@ export default function App() {
   );
   const firstBootRef = useRef(true);
   const NAV_KEY = 'speak2design_nav';
-  const PERSIST_PAGES: Page[] = ['dashboard', 'workspace', 'marketplace', 'settings'];
+  const PERSIST_PAGES: Page[] = ['dashboard', 'workspace', 'marketplace', 'library', 'settings'];
 
   // ── Detect /view/:token share links before anything else ──────────────────
   // The app uses a state-machine router without React Router, so we intercept
@@ -222,8 +223,6 @@ export default function App() {
 
   const handleNavigate = (page: string) => {
     if (page === 'logout') { clearUserSession(); toast.info('Logged out securely.'); return; }
-    // Library = the marketplace opened on its "My Library" tab.
-    if (page === 'library') { setMarketplaceView('library'); setCurrentPage('marketplace'); return; }
     if (page === 'marketplace') { setMarketplaceView('buy'); setCurrentPage('marketplace'); return; }
     if (page in VIEW_FILTERS) {
       setDashboardFilter(VIEW_FILTERS[page]);
@@ -331,6 +330,8 @@ export default function App() {
         return <Workspace projectId={selectedProjectId} onBack={() => setCurrentPage('dashboard')} initialPrompt={initialPrompt} openTemplates={openWorkspaceTemplates} />;
       case 'marketplace':
         return <Marketplace initialView={marketplaceView} onCheckout={handleCheckout} onCheckoutCart={handleCheckoutCart} onBack={() => setCurrentPage('dashboard')} onOpenProject={handleSelectProject} />;
+      case 'library':
+        return <Library onOpenProject={handleSelectProject} onBrowse={() => handleNavigate('marketplace')} onBack={() => setCurrentPage('dashboard')} />;
       case 'checkout':
         return <Checkout template={selectedTemplate} cart={checkoutCart} onConfirm={handleConfirmPurchase} onBack={() => setCurrentPage('marketplace')} />;
       case 'settings':

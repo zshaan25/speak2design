@@ -19,9 +19,13 @@ const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:500
 type Page = 'landing' | 'signup' | 'dashboard' | 'workspace' | 'marketplace' | 'checkout' | 'settings' | 'public_view';
 
 export default function App() {
+  // An OAuth return arrives as ?token=… before it's persisted, so seed authToken
+  // from the URL too — otherwise the first boot sees no token and flashes landing.
+  const bootParams = new URLSearchParams(window.location.search);
+  const initialToken = bootParams.get('token') || localStorage.getItem('speak2design_token');
   const [currentPage, setCurrentPage] = useState<Page>('landing');
   const [user, setUser] = useState<AppUser | null>(null);
-  const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('speak2design_token'));
+  const [authToken, setAuthToken] = useState<string | null>(initialToken);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [checkoutCart, setCheckoutCart] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -34,8 +38,7 @@ export default function App() {
   // While validating a stored token on load, show a loader instead of flashing
   // the landing page. Only the first boot restores the previously open page.
   const [booting, setBooting] = useState<boolean>(
-    !!localStorage.getItem('speak2design_token') &&
-    !new URLSearchParams(window.location.search).get('reset')
+    !!initialToken && !bootParams.get('reset')
   );
   const firstBootRef = useRef(true);
   const NAV_KEY = 'speak2design_nav';

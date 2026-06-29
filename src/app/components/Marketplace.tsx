@@ -166,6 +166,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
   };
 
   useEffect(() => { fetchTemplates(); loadTier(); fetchMyTemplates(); fetchLibrary(); fetchMyProjects(); }, []);
+  // Follow the requested tab when navigation changes it (e.g. sidebar "Library").
+  useEffect(() => { setView(initialView); }, [initialView]);
   // Refresh the library whenever the user switches to that tab.
   useEffect(() => { if (view === 'library') fetchLibrary(); }, [view]);
 

@@ -34,6 +34,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  // Marketplace filters (#More Filters)
+  const [showFilters, setShowFilters] = useState(false);
+  const [catFilter, setCatFilter] = useState('All');
+  const [mpLangFilter, setMpLangFilter] = useState('All');
+  const [priceFilter, setPriceFilter] = useState<'all' | 'free' | 'paid'>('all');
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishForm, setPublishForm] = useState({ title: '', description: '', price: '2500', language: 'English', tags: '', imageUrl: '', designId: '' });
   const [myProjects, setMyProjects] = useState<any[]>([]);
@@ -184,10 +189,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
     return `Rs${price.toLocaleString()}`;
   };
 
-  const filteredTemplates = templates.filter(t =>
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (t.author || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const categories = ['All', ...Array.from(new Set(templates.map(t => t.category).filter(Boolean)))];
+  const filteredTemplates = templates.filter(t => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !q || t.title.toLowerCase().includes(q) || (t.author || '').toLowerCase().includes(q);
+    const matchesCat = catFilter === 'All' || t.category === catFilter;
+    const lang = t.language || t.lang || 'English';
+    const matchesLang = mpLangFilter === 'All' || lang === mpLangFilter;
+    const price = t.price || 0;
+    const matchesPrice = priceFilter === 'all' || (priceFilter === 'free' ? price === 0 : price > 0);
+    return matchesSearch && matchesCat && matchesLang && matchesPrice;
+  });
 
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,13 +310,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
             <p className="text-white/45 text-sm mt-1">{loading ? 'Loading…' : `${templates.length} templates available`}</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 glass p-1.5 rounded-2xl">
+        <div className="flex items-center gap-1 glass p-1 rounded-xl">
           {(['buy', 'library', 'sell'] as const).map(v => (
             <button key={v} onClick={() => setView(v)}
-              className={`px-5 py-2.5 rounded-xl font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                 view === v ? 'text-white bg-white/10 glow-indigo' : 'text-white/45 hover:text-white'
               }`}>
-              {v === 'buy' ? 'Buy Templates' : v === 'library' ? 'My Library' : 'Sell Your Design'}
+              {v === 'buy' ? 'Buy' : v === 'library' ? 'Library' : 'Sell'}
             </button>
           ))}
         </div>
@@ -343,11 +355,50 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckout
                 className="w-full pl-12 pr-4 py-3.5 glass rounded-2xl text-white placeholder-white/30 focus:ring-2 focus:ring-brand-violet/60 outline-none"
               />
             </div>
-            <button className="flex items-center gap-2 px-6 py-3.5 glass rounded-2xl font-bold text-white/80 hover:text-white hover:border-white/25 transition-all">
+            <button onClick={() => setShowFilters(s => !s)}
+              className={`flex items-center gap-2 px-6 py-3.5 glass rounded-2xl font-bold transition-all ${
+                showFilters || catFilter !== 'All' || mpLangFilter !== 'All' || priceFilter !== 'all'
+                  ? 'text-brand-cyan border-brand-cyan/40' : 'text-white/80 hover:text-white hover:border-white/25'
+              }`}>
               <Filter className="w-5 h-5" />
-              More Filters
+              Filters
             </button>
           </div>
+
+          {/* Filter bar */}
+          {showFilters && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+              className="flex flex-wrap items-center gap-3 -mt-4">
+              <div className="flex items-center gap-1.5 glass rounded-xl p-1">
+                {categories.map(c => (
+                  <button key={c} onClick={() => setCatFilter(c)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${catFilter === c ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white'}`}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5 glass rounded-xl p-1">
+                {(['All', 'English', 'Urdu'] as const).map(l => (
+                  <button key={l} onClick={() => setMpLangFilter(l)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mpLangFilter === l ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white'}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5 glass rounded-xl p-1">
+                {([['all', 'All prices'], ['free', 'Free'], ['paid', 'Paid']] as const).map(([v, label]) => (
+                  <button key={v} onClick={() => setPriceFilter(v)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${priceFilter === v ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {(catFilter !== 'All' || mpLangFilter !== 'All' || priceFilter !== 'all') && (
+                <button onClick={() => { setCatFilter('All'); setMpLangFilter('All'); setPriceFilter('all'); }}
+                  className="text-xs font-bold text-white/45 hover:text-rose-400 transition-colors">Clear</button>
+              )}
+            </motion.div>
+          )}
 
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

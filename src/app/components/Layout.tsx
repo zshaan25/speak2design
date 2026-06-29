@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, LayoutGrid, ShoppingBag, LogOut, Info, Search, Bell, Star, Trash2, Users, Crown, Sun, Moon, Clock, FileText, Archive, Check, ShoppingCart, Upload, CheckCircle2 } from 'lucide-react';
+import { Mic, LayoutGrid, ShoppingBag, LogOut, Info, Search, Bell, Star, Trash2, Library, Crown, Sun, Moon, Clock, FileText, Archive, Check, ShoppingCart, Upload, CheckCircle2 } from 'lucide-react';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:5000';
 import { useTheme } from '../theme/ThemeContext';
@@ -28,11 +28,11 @@ export const Sidebar: React.FC<{ currentPage: string; onNavigate: (page: string)
     { id: 'recent', label: t('recent'), icon: Clock, view: 'recent' },
     { id: 'workspace', label: t('workspace'), icon: Mic },
     { id: 'marketplace', label: t('marketplace'), icon: ShoppingBag },
+    { id: 'library', label: 'Library', icon: Library },
   ];
   const secondaryItems = [
     { id: 'favorites', label: t('favorites'), icon: Star, view: 'favorites' },
     { id: 'drafts', label: t('drafts'), icon: FileText, view: 'drafts' },
-    { id: 'shared', label: t('shared'), icon: Users, view: 'shared' },
     { id: 'archived', label: t('archived'), icon: Archive, view: 'archived' },
     { id: 'trash', label: t('trash'), icon: Trash2, view: 'trash' },
   ];

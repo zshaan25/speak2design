@@ -35,6 +35,8 @@ export default function App() {
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
   // When true, the workspace opens with the template library auto-shown.
   const [openWorkspaceTemplates, setOpenWorkspaceTemplates] = useState(false);
+  // Which tab the marketplace opens on ('buy' | 'library' | 'sell').
+  const [marketplaceView, setMarketplaceView] = useState<'buy' | 'library' | 'sell'>('buy');
   // While validating a stored token on load, show a loader instead of flashing
   // the landing page. Only the first boot restores the previously open page.
   const [booting, setBooting] = useState<boolean>(
@@ -215,11 +217,14 @@ export default function App() {
   // Sidebar "view" items map to the dashboard with a server-side filter (#16).
   const VIEW_FILTERS: Record<string, string> = {
     dashboard: 'all', recent: 'recent', favorites: 'favorites',
-    shared: 'shared', drafts: 'drafts', archived: 'archived', trash: 'trash',
+    drafts: 'drafts', archived: 'archived', trash: 'trash',
   };
 
   const handleNavigate = (page: string) => {
     if (page === 'logout') { clearUserSession(); toast.info('Logged out securely.'); return; }
+    // Library = the marketplace opened on its "My Library" tab.
+    if (page === 'library') { setMarketplaceView('library'); setCurrentPage('marketplace'); return; }
+    if (page === 'marketplace') { setMarketplaceView('buy'); setCurrentPage('marketplace'); return; }
     if (page in VIEW_FILTERS) {
       setDashboardFilter(VIEW_FILTERS[page]);
       setCurrentPage('dashboard');
@@ -325,7 +330,7 @@ export default function App() {
       case 'workspace':
         return <Workspace projectId={selectedProjectId} onBack={() => setCurrentPage('dashboard')} initialPrompt={initialPrompt} openTemplates={openWorkspaceTemplates} />;
       case 'marketplace':
-        return <Marketplace onCheckout={handleCheckout} onCheckoutCart={handleCheckoutCart} onBack={() => setCurrentPage('dashboard')} onOpenProject={handleSelectProject} />;
+        return <Marketplace initialView={marketplaceView} onCheckout={handleCheckout} onCheckoutCart={handleCheckoutCart} onBack={() => setCurrentPage('dashboard')} onOpenProject={handleSelectProject} />;
       case 'checkout':
         return <Checkout template={selectedTemplate} cart={checkoutCart} onConfirm={handleConfirmPurchase} onBack={() => setCurrentPage('marketplace')} />;
       case 'settings':

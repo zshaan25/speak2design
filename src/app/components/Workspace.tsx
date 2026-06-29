@@ -1763,37 +1763,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBack, projectId, initial
             </div>
           )}
 
-          {/* Color theme picker */}
-          <div className="relative">
-            <button
-              onClick={() => setShowThemePicker(p => !p)}
-              title="Apply color theme"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-brand-pink rounded-lg text-xs font-bold hover:border-white/25 transition-colors"
-            >
-              <Palette className="w-4 h-4" />
-              Theme
-            </button>
-            {showThemePicker && (
-              <div className="absolute right-0 top-full mt-2 glass-strong border border-white/10 rounded-2xl shadow-xl p-3 z-50 w-40">
-                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 px-1">Color Themes</p>
-                {THEMES.map(t => (
-                  <button key={t.id} onClick={() => applyColorTheme(t.id)}
-                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-white/10 text-left transition-colors">
-                    <span className={`w-3 h-3 rounded-full flex-shrink-0 ${t.dot}`} />
-                    <span className="text-sm font-semibold text-white/80">{t.label}</span>
-                  </button>
-                ))}
-                <div className="mt-2 pt-2 border-t border-white/10">
-                  <p className="text-[10px] text-white/40 px-1 leading-relaxed">Swaps primary colors. Ctrl+Z to undo.</p>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Font Picker */}
           <div className="relative">
             <button
-              onClick={() => { setShowFontPicker(p => !p); setShowThemePicker(false); }}
+              onClick={() => setShowFontPicker(p => !p)}
               title="Change canvas font"
               className="flex items-center gap-1.5 px-2.5 py-1.5 glass text-brand-cyan rounded-lg text-xs font-bold hover:border-white/25 transition-colors"
             >

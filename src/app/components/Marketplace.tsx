@@ -24,10 +24,11 @@ interface MarketplaceProps {
   onCheckoutCart?: (cart: any[]) => void;
   onBack: () => void;
   onOpenProject?: (projectId: string) => void;
+  initialView?: 'buy' | 'library' | 'sell';
 }
 
-export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckoutCart, onBack, onOpenProject }) => {
-  const [view, setView] = useState<'buy' | 'library' | 'sell'>('buy');
+export const Marketplace: React.FC<MarketplaceProps> = ({ onCheckout, onCheckoutCart, onBack, onOpenProject, initialView = 'buy' }) => {
+  const [view, setView] = useState<'buy' | 'library' | 'sell'>(initialView);
   const [library, setLibrary] = useState<any[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [currency, setCurrency] = useState<'PKR' | 'USD'>('PKR');

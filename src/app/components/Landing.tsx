@@ -1,13 +1,14 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import {
-  Mic, Sparkles, ArrowRight, MousePointer2, Store, Wand2, Languages, Globe, Check,
+  Mic, Sparkles, ArrowRight, MousePointer2, Store, Wand2, Languages, Globe, Check, Sun, Moon,
 } from 'lucide-react';
 import { GradientButton } from '../design/GradientButton';
 import { GlassCard } from '../design/GlassCard';
 import { VoiceWave } from '../design/VoiceWave';
 import { NeonText, GlowBadge } from '../design/NeonText';
 import { Logo } from '../design/Logo';
+import { useTheme } from '../theme/ThemeContext';
 
 interface LandingProps {
   onGetStarted: () => void;
@@ -27,6 +28,7 @@ const FEATURES = [
 ];
 
 export const Landing: React.FC<LandingProps> = ({ onGetStarted, onExplore }) => {
+  const { theme, toggleTheme } = useTheme();
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden text-white">
       {/* Nav */}
@@ -36,6 +38,11 @@ export const Landing: React.FC<LandingProps> = ({ onGetStarted, onExplore }) => 
           <span className="font-display text-xl font-bold tracking-tight">Speak2Design</span>
         </div>
         <div className="flex items-center gap-3">
+          {/* Theme toggle — usable before login */}
+          <button onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="rounded-xl p-2.5 glass text-white/70 hover:text-white hover:border-white/25 transition-colors">
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
           <button onClick={onGetStarted} className="hidden rounded-xl px-4 py-2 text-sm font-bold text-white/70 transition-colors hover:text-white sm:block">
             Sign in
           </button>

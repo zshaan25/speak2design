@@ -49,7 +49,7 @@ git push -u origin main
    MONGODB_URI=<your Atlas connection string>
    JWT_SECRET=<a long random string, 32+ chars>
    GEMINI_API_KEY=<your real Gemini key>
-   FRONTEND_URL=https://speak2design.vercel.app
+   FRONTEND_URL=https://d1khpu1t6zzts5.cloudfront.net
    STRIPE_SECRET_KEY=<optional Stripe TEST key; omit to use simulated payments>
    ```
 6. Click **Create Web Service**
@@ -62,23 +62,66 @@ git push -u origin main
 
 ---
 
-## Step 4: Deploy Frontend to Vercel (Free)
+## Step 4: Deploy Frontend to AWS S3 & CloudFront
 
-1. Go to https://vercel.com → Sign in with GitHub
-2. Click **Add New** → **Project**
-3. Import your `speak2design` repo
-4. Configure:
-   - **Framework Preset:** Vite
-   - **Root Directory:** `.` (project root)
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
-5. Add **Environment Variable(s)**:
+### 1. Build the Vite Frontend
+1. Create a `.env` file in the project root:
    ```
-   VITE_API_URL = https://speak2design-backend.onrender.com
-   VITE_STRIPE_PK = <optional Stripe TEST publishable key>
+   VITE_API_URL=https://speak2design-backend.onrender.com
+   VITE_STRIPE_PK=<optional Stripe TEST publishable key>
    ```
-6. Click **Deploy**
-7. You'll get a URL like: `https://speak2design.vercel.app`
+2. Build the project:
+   ```bash
+   npm run build
+   ```
+   This generates the production-ready assets in the `dist/` directory.
+
+### 2. Configure AWS S3 Bucket
+1. Log into your **AWS Console** and navigate to **S3**.
+2. Click **Create Bucket**:
+   - **Bucket Name:** e.g., `speak2design-frontend`
+   - **Region:** Choose your preferred AWS region.
+   - Keep **Block all public access** checked (we will access the bucket securely using CloudFront OAC).
+3. Once created, keep the bucket ARN handy.
+
+### 3. Configure Amazon CloudFront (CDN, HTTPS & SPA Routing)
+1. Go to the **CloudFront** console and click **Create Distribution**.
+2. **Origin Settings:**
+   - **Origin Domain:** Select your S3 bucket (e.g., `speak2design-frontend.s3.amazonaws.com`).
+   - **Origin Access:** Select **Origin access control settings (recommended)**.
+   - Click **Create OAC** and select your control settings (keep defaults).
+   - Under **S3 bucket policy**, copy the policy statement shown (you will paste this in the S3 bucket permissions next).
+3. **Default Cache Behavior:**
+   - **Viewer Protocol Policy:** Select **Redirect HTTP to HTTPS**.
+   - **Allowed HTTP Methods:** Select `GET, HEAD`.
+4. **Settings:**
+   - **Default Root Object:** Type `index.html`.
+5. Click **Create Distribution**.
+6. **Apply S3 Bucket Policy:**
+   - Go back to your S3 bucket → **Permissions** tab → **Bucket policy** → Click **Edit**.
+   - Paste the policy copied from CloudFront (allows CloudFront to retrieve objects from the bucket).
+   - Save changes.
+7. **Configure SPA Routing (Custom Error Responses):**
+   - In CloudFront, open your newly created distribution.
+   - Navigate to the **Error pages** tab.
+   - Click **Create custom error response**:
+     - **HTTP error code:** `404: Not Found`
+     - **Customize error response:** Select **Yes**
+     - **Response page path:** `/index.html`
+     - **HTTP response code:** `200: OK`
+     - Click **Save**.
+   - (Optional but recommended) Repeat the same custom error response setup for `403: Forbidden`.
+
+### 4. Deploy Files to S3
+1. Install and configure the AWS CLI on your local machine (`aws configure`).
+2. Sync the built folder to your S3 bucket:
+   ```bash
+   aws s3 sync dist/ s3://speak2design-frontend --delete
+   ```
+3. Invalidate CloudFront cache to serve the latest files immediately:
+   ```bash
+   aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"
+   ```
 
 ---
 
@@ -89,7 +132,7 @@ Run these checks:
 | Check | URL | Expected |
 |-------|-----|----------|
 | Backend health | `https://speak2design-backend.onrender.com/health` | `{"status":"active"}` |
-| Frontend loads | `https://speak2design.vercel.app` | Login page visible |
+| Frontend loads | `https://d1khpu1t6zzts5.cloudfront.net` | Login page visible |
 | Register user | POST `/api/auth/register` | 201 with token |
 | Voice command | POST `/api/voice/process-text-intent` | Canvas updates |
 
@@ -97,12 +140,12 @@ Run these checks:
 
 ## Evaluation Checklist
 
-- ✅ Live URL accessible (Vercel provides HTTPS automatically)
-- ✅ SSL/TLS configured (Vercel handles this)
+- ✅ Live URL accessible via HTTPS (CloudFront provides SSL/TLS automatically)
+- ✅ SSL/TLS configured (CloudFront SSL certificate setup)
 - ✅ Database on cloud (MongoDB Atlas)
-- ✅ Environment variables secured (not in code)
+- ✅ Environment variables secured (configured inside S3 build environment and Render backend variables)
 - ✅ Git repository with meaningful commits
-- ✅ Free tier hosting (Render free + Vercel free)
+- ✅ Production-grade infrastructure (AWS S3 + CloudFront for frontend, Render for backend)
 
 ---
 
@@ -111,13 +154,13 @@ Run these checks:
 **Backend not starting:** Check Render logs. Most common cause is missing env variable.
 
 **CORS error on frontend:** The backend `server.js` allows `localhost:5173`. For production, 
-update the CORS origin to include your Vercel URL:
+update the CORS origin to include your CloudFront URL:
 ```js
 app.use(cors({ 
   origin: [
     'http://localhost:5173',
-    'https://speak2design.vercel.app',  // ← add this
-    'https://YOUR-CUSTOM-DOMAIN.com'    // ← if you have one
+    'https://d1khpu1t6zzts5.cloudfront.net',  // ← add this
+    'https://YOUR-CUSTOM-DOMAIN.com'          // ← if you have one
   ], 
   credentials: true 
 }));

@@ -72,4 +72,4 @@ VITE_API_URL=http://127.0.0.1:5000
 - Passwords are bcrypt-hashed; auth uses signed JWTs. The server refuses to boot without `JWT_SECRET` and `MONGODB_URI`.
 
 ## Deployment
-See [DEPLOYMENT.md](DEPLOYMENT.md). Frontend → Vercel, backend → Render.
+See [DEPLOYMENT.md](DEPLOYMENT.md). Frontend → AWS S3 + CloudFront, backend → Render.

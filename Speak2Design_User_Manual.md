@@ -87,7 +87,7 @@ _GROQ_API_KEY=&lt;key from console.groq.com&gt; # \*(AI voice & UI generator key
 
 _\# Application URLs (Ensure HTTPS is used for cloud deployments)_
 
-_FRONTEND_URL=<https://d1khpu1t6zzts5.cloudfront.net> # CloudFront/Vercel URL_
+_FRONTEND_URL=<https://d1khpu1t6zzts5.cloudfront.net> # CloudFront/S3 URL_
 
 _BACKEND_URL=<https://speak2design.onrender.com> # Render production URL_
 
@@ -501,8 +501,7 @@ Click Preview in the canvas toolbar to open a modal showing the rendered website
 - README.md - quick-start instructions
 
 - Open index.html in any browser to see the result
-- Deploy the folder to Vercel, Netlify, or any static host without modification
-
+- Deploy the folder to AWS S3, Vercel, Netlify, or any static host without modification
 _The exported HTML uses inline styles from the component definitions. No build step is required._
 
 # **10\. Backend API Reference**

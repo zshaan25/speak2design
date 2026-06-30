@@ -1,7 +1,15 @@
 // ── MUST be the very first import so process.env is populated before ANY other
 // module reads it at load time. In ESM imports are evaluated left-to-right.
 import 'dotenv/config';
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4']);
+} catch (err) {
+  console.warn('>>> Warning: Could not set custom DNS servers:', err.message);
+}
 
+// ... baaki imports
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
@@ -25,9 +33,7 @@ const app = express();
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'https://speak2design.vercel.app',
+  'https://d1khpu1t6zzts5.cloudfront.net',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 

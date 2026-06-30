@@ -7,6 +7,11 @@ backend/node_modules/
 backend/.env
 .env.local
 .env.production
+*.env
+
+# Archives
+*.zip
+backend/*.zip
 
 # Build output
 dist/

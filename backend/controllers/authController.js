@@ -196,7 +196,7 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
 
-    const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const base = process.env.FRONTEND_URL || 'https://d1khpu1t6zzts5.cloudfront.net';
     const resetLink = `${base}/?reset=${rawToken}`;
 
     let emailed = false;
@@ -380,7 +380,7 @@ export const upgradeCheckout = async (req, res) => {
     if (!process.env.STRIPE_SECRET_KEY) {
       return res.status(200).json({ success: true, simulated: true });
     }
-    const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const base = process.env.FRONTEND_URL || 'https://d1khpu1t6zzts5.cloudfront.net';
     const { url, sessionId } = await createUpgradeCheckoutSession({
       userId:       req.user._id.toString(),
       email:        req.user.email,

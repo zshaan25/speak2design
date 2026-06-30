@@ -7,8 +7,8 @@ import User from '../models/User.js';
 // so top-level constants that read process.env will see undefined.
 // Using getter functions ensures env vars are read on every request, after
 // dotenv has already populated process.env.
-const getBackendUrl  = () => process.env.BACKEND_URL  || 'http://127.0.0.1:5000';
-const getFrontendUrl = () => process.env.FRONTEND_URL || 'http://localhost:5173';
+const getBackendUrl  = () => process.env.BACKEND_URL  || 'http://speak2design-env.eba-kdpjyapi.ap-south-1.elasticbeanstalk.com';
+const getFrontendUrl = () => process.env.FRONTEND_URL || 'https://d1khpu1t6zzts5.cloudfront.net';
 
 const getProviders = () => ({
   google: {

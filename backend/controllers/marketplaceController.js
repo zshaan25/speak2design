@@ -219,8 +219,8 @@ export const createCheckoutSessionHandler = async (req, res) => {
       templateName:  template.title,
       priceInCents:  Math.round(template.price * 100),
       stripePriceId: template.stripePriceId,
-      successUrl:    `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?purchase=success&templateId=${template._id}`,
-      cancelUrl:     `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?purchase=cancelled`,
+      successUrl:    `${process.env.FRONTEND_URL || 'https://d1khpu1t6zzts5.cloudfront.net'}/?purchase=success&templateId=${template._id}`,
+      cancelUrl:     `${process.env.FRONTEND_URL || 'https://d1khpu1t6zzts5.cloudfront.net'}/?purchase=cancelled`,
     });
 
     return res.status(200).json({ success: true, url: session.url, sessionId: session.id });

@@ -20,7 +20,7 @@ services:
       - key: GROQ_API_KEY         # AI: Whisper transcription + LLaMA UI generation
         sync: false
       # ── URLs (required for CORS / OAuth / Stripe redirects) ──────────
-      - key: FRONTEND_URL         # e.g. https://speak2design.vercel.app
+      - key: FRONTEND_URL         # e.g. https://d1khpu1t6zzts5.cloudfront.net
         sync: false
       - key: BACKEND_URL          # this service's public URL (OAuth callbacks)
         sync: false
